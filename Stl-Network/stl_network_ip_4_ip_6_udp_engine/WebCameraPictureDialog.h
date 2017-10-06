@@ -62,7 +62,50 @@ public:
 
 	//	ISampleGrabberCB methods
 	STDMETHODIMP SampleCB( double SampleTime, IMediaSample *pSample );
-	STDMETHODIMP BufferCB( double SampleTime, BYTE *pBuffer, long BufferLen );
+	STDMETHODIMP BufferCB( double SampleTime, BYTE *pBuffer, long BufferLength );
+
+	class Video: public ISampleGrabberCB
+	{
+		CWebCameraPictureDialog *parent_dialog;
+	public:
+
+		Video(CWebCameraPictureDialog *parent_dialog_parameter)
+			:parent_dialog(parent_dialog_parameter)
+		{
+		}
+
+		HRESULT STDMETHODCALLTYPE QueryInterface(
+			/* [in] */ REFIID riid,
+			/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject);
+
+		ULONG STDMETHODCALLTYPE AddRef(void);
+
+		ULONG STDMETHODCALLTYPE Release(void);
+
+		template<class Q>
+		HRESULT
+			STDMETHODCALLTYPE
+			QueryInterface(_COM_Outptr_ Q** pp)
+		{
+			return QueryInterface(__uuidof(Q), (void **)pp);
+		}
+
+		STDMETHODIMP SampleCB(double SampleTime, IMediaSample *pSample);
+		STDMETHODIMP BufferCB(double SampleTime, BYTE *pBuffer, long BufferLength);
+
+		struct Captured_Video_Data_List_ITEM
+		{
+			IStream *video_stream;
+			double SampleTime;
+		};
+
+		std::list<Captured_Video_Data_List_ITEM> video_captured_fragments_list_ip_4;
+
+		std::list<Captured_Video_Data_List_ITEM> video_captured_fragments_list_ip_6;
+
+		CCriticalSection video_captured_fragments_list_critical_section;
+	};
+
 	//	Captured Audio Data List
 	struct Captured_Audio_Data_List_ITEM
 	{
@@ -103,7 +146,12 @@ public:
 		{
 			hr = pAudioGrabber->SetCallback(NULL,1);
 		}
-																						
+		
+		if (SUCCEEDED(hr) && pVideoGrabber != NULL)
+		{
+			hr = pVideoGrabber->SetCallback(NULL, 1);
+		}
+
 		if (SUCCEEDED(hr) && pMediaControl!=NULL)
 		{
 			hr = pMediaControl->Stop();
@@ -112,6 +160,8 @@ public:
 
 	Cstl_network_ip_4_ip_6_udp_engineDialog *main_dialog;
 	CStatic window_direct_show_to_paint;
+
+	Video video_capture_engine;
 };
 
 void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width=0, int height=0);
@@ -124,5 +174,10 @@ void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IS
 void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image);
 void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image);
 
+void CaptureWebCameraVideoSampleGetFromTheList_ip_4_internal(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_video_stream_image);
+void CaptureWebCameraVideoSampleGetFromTheList_ip_6_internal(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_video_stream_image);
+
+void CaptureWebCameraVideoSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image);
+void CaptureWebCameraVideoSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image);
 
 void _FreeMediaType(AM_MEDIA_TYPE& mt);

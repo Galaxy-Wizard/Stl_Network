@@ -31,8 +31,8 @@ void _FreeMediaType(AM_MEDIA_TYPE& mt)
 
 IMPLEMENT_DYNAMIC(CWebCameraPictureDialog, CDialogEx)
 
-	CWebCameraPictureDialog::CWebCameraPictureDialog(CWnd* pParent /*=NULL*/)
-	: CDialogEx(CWebCameraPictureDialog::IDD, pParent)
+CWebCameraPictureDialog::CWebCameraPictureDialog(CWnd* pParent /*=NULL*/)
+	: CDialogEx(CWebCameraPictureDialog::IDD, pParent), video_capture_engine(this)
 {
 	main_dialog = NULL;
 }
@@ -58,24 +58,24 @@ BOOL CWebCameraPictureDialog::OnInitDialog()
 
 	// TODO: добавьте дополнительную инициализацию
 
-	CRect rcClient(0,0,ENGINE_WINDOWS_SIZE_CX/2,ENGINE_WINDOWS_SIZE_CY/2);
+	CRect rcClient(0, 0, ENGINE_WINDOWS_SIZE_CX / 2, ENGINE_WINDOWS_SIZE_CY / 2);
 
 	if
 		(
-		AdjustWindowRect(&rcClient, DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION, FALSE)
-		==
-		TRUE
-		)
+			AdjustWindowRect(&rcClient, DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION, FALSE)
+			==
+			TRUE
+			)
 	{
-		if(
-			SetWindowPos(NULL, 0, ENGINE_WINDOWS_SIZE_CY+100, rcClient.Width(), rcClient.Height(), SWP_NOZORDER | SWP_NOREDRAW)
+		if (
+			SetWindowPos(NULL, 0, ENGINE_WINDOWS_SIZE_CY + 100, rcClient.Width(), rcClient.Height(), SWP_NOZORDER | SWP_NOREDRAW)
 			==
 			TRUE
 			)
 		{
-			CRect static_client(0,0,ENGINE_WINDOWS_SIZE_CX/2,ENGINE_WINDOWS_SIZE_CY/2);
+			CRect static_client(0, 0, ENGINE_WINDOWS_SIZE_CX / 2, ENGINE_WINDOWS_SIZE_CY / 2);
 
-			if(
+			if (
 				window_direct_show_to_paint.SetWindowPos(NULL, static_client.left, static_client.top, static_client.Width(), static_client.Height(), SWP_NOZORDER | SWP_NOREDRAW)
 				==
 				TRUE
@@ -93,7 +93,7 @@ BOOL CWebCameraPictureDialog::OnInitDialog()
 	//Инициализируем библиотеку COM
 	//	hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
-	if(SUCCEEDED(hr))
+	if (SUCCEEDED(hr))
 	{
 		init_capture(window_direct_show_to_paint.m_hWnd);
 	}
@@ -101,9 +101,9 @@ BOOL CWebCameraPictureDialog::OnInitDialog()
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
 
-HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath) 
+HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath)
 {
-	const WCHAR wszStreamName[] = L"ActiveMovieGraph"; 
+	const WCHAR wszStreamName[] = L"ActiveMovieGraph";
 	HRESULT hr;
 
 	IStorage *pStorage = NULL;
@@ -111,7 +111,7 @@ HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath)
 		wszPath,
 		STGM_CREATE | STGM_TRANSACTED | STGM_READWRITE | STGM_SHARE_EXCLUSIVE,
 		0, &pStorage);
-	if(FAILED(hr)) 
+	if (FAILED(hr))
 	{
 		return hr;
 	}
@@ -121,9 +121,9 @@ HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath)
 		wszStreamName,
 		STGM_WRITE | STGM_CREATE | STGM_SHARE_EXCLUSIVE,
 		0, 0, &pStream);
-	if (FAILED(hr)) 
+	if (FAILED(hr))
 	{
-		pStorage->Release();    
+		pStorage->Release();
 		return hr;
 	}
 
@@ -132,7 +132,7 @@ HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath)
 	hr = pPersist->Save(pStream, TRUE);
 	pStream->Release();
 	pPersist->Release();
-	if (SUCCEEDED(hr)) 
+	if (SUCCEEDED(hr))
 	{
 		hr = pStorage->Commit(STGC_DEFAULT);
 	}
@@ -142,7 +142,7 @@ HRESULT SaveGraphFile(IGraphBuilder *pGraph, WCHAR *wszPath)
 
 void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width, int height)
 {
-	if(parameter_image==NULL)
+	if (parameter_image == NULL)
 	{
 		return;
 	}
@@ -152,7 +152,7 @@ void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width, int height)
 
 	CWnd active_window;
 
-	if(active_window_handle!=NULL)
+	if (active_window_handle != NULL)
 	{
 		active_window.Attach(active_window_handle);
 	}
@@ -161,7 +161,7 @@ void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width, int height)
 	CWnd desktop_window;
 	desktop_window.Attach(desktop_window_handle);
 
-	if(active_window_handle!=NULL)
+	if (active_window_handle != NULL)
 	{
 		desktop_window.SetFocus();
 	}
@@ -172,20 +172,20 @@ void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width, int height)
 		scrdc = ::GetDC(hwnd);
 		RECT local_rect;
 		::GetWindowRect(hwnd, &local_rect);
-		int Width = local_rect.right-local_rect.left;
-		int Height = local_rect.bottom-local_rect.top;
+		int Width = local_rect.right - local_rect.left;
+		int Height = local_rect.bottom - local_rect.top;
 
-		if(width!=0)
+		if (width != 0)
 		{
 			Width = width;
 		}
-		if(height!=0)
+		if (height != 0)
 		{
 			Height = height;
 		}
 		memdc = CreateCompatibleDC(scrdc);
 		membit = CreateCompatibleBitmap(scrdc, Width, Height);
-		HBITMAP hOldBitmap =(HBITMAP) SelectObject(memdc, membit);
+		HBITMAP hOldBitmap = (HBITMAP)SelectObject(memdc, membit);
 		BitBlt(memdc, 0, 0, Width, Height, scrdc, 0, 0, SRCCOPY);
 
 		//		parameter_image->Attach(membit);
@@ -196,10 +196,10 @@ void CaptureWndShot(HWND hwnd, CImage *parameter_image, int width, int height)
 		SelectObject(memdc, hOldBitmap);
 		DeleteObject(memdc);
 		//		DeleteObject(membit);
-		::ReleaseDC(0,scrdc);
+		::ReleaseDC(0, scrdc);
 	}
 
-	if(active_window_handle!=NULL)
+	if (active_window_handle != NULL)
 	{
 		active_window.SetFocus();
 
@@ -214,12 +214,12 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 
 	{
 		//Создание графа-фильтров - Create the Capture Graph Builder
-		hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&pBuild );
-		if (SUCCEEDED(hr) && pBuild!=NULL)
+		hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&pBuild);
+		if (SUCCEEDED(hr) && pBuild != NULL)
 		{
 			//Создание менеджера графа фильтров - Create the Filter Graph Manager
 			hr = CoCreateInstance(CLSID_FilterGraph, 0, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&pGraph);
-			if (SUCCEEDED(hr) && pGraph!=NULL)
+			if (SUCCEEDED(hr) && pGraph != NULL)
 			{
 				//Initialize the Capture Graph Builder
 				pBuild->SetFiltergraph(pGraph);
@@ -227,25 +227,25 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 				// Find system device enumerator to find a video capture device.
 				hr = CoCreateInstance(CLSID_SystemDeviceEnum, 0, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (LPVOID*)&pDevEnum);
 
-				if(SUCCEEDED(hr) && pDevEnum!=NULL)
+				if (SUCCEEDED(hr) && pDevEnum != NULL)
 				{
 
 					//создает счетчик для определенной категории устройств
 					hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnum, 0);
 
-					if(SUCCEEDED(hr) && pEnum!=NULL)
+					if (SUCCEEDED(hr) && pEnum != NULL)
 					{
-						if( pEnum->Next(1, &pVideoMoniker,0) == S_OK && pVideoMoniker!=NULL)
+						if (pEnum->Next(1, &pVideoMoniker, 0) == S_OK && pVideoMoniker != NULL)
 						{
 							hr = pVideoMoniker->BindToObject(0, 0, IID_IBaseFilter, (void **)&pVideoCapture);
 
-							if(SUCCEEDED(hr) && pVideoCapture!=NULL)
+							if (SUCCEEDED(hr) && pVideoCapture != NULL)
 							{
 								pGraph->AddFilter(pVideoCapture, L"Video Capture Filter");
 
 
 								hr = CoCreateInstance(CLSID_VideoRenderer, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pVideoRenderer);
-								if (SUCCEEDED(hr) && pVideoRenderer!=NULL)
+								if (SUCCEEDED(hr) && pVideoRenderer != NULL)
 								{
 									pGraph->AddFilter(pVideoRenderer, L"Video Renderer Filter");
 
@@ -254,14 +254,14 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 										// Create the Sample Grabber filter.
 										hr = CoCreateInstance(CLSID_SampleGrabber, NULL, CLSCTX_INPROC_SERVER,
 											IID_PPV_ARGS(&pVideoGrabberF));
-										if (SUCCEEDED(hr) && pVideoGrabberF!=NULL)
+										if (SUCCEEDED(hr) && pVideoGrabberF != NULL)
 										{
 											hr = pGraph->AddFilter(pVideoGrabberF, L"Video Sample Grabber");
 											if (SUCCEEDED(hr))
 											{
 												hr = pVideoGrabberF->QueryInterface(IID_ISampleGrabber, (void**)&pVideoGrabber);
 
-												if (SUCCEEDED(hr) && pVideoGrabber!=NULL)
+												if (SUCCEEDED(hr) && pVideoGrabber != NULL)
 												{
 													AM_MEDIA_TYPE mt;
 													ZeroMemory(&mt, sizeof(mt));
@@ -279,28 +279,32 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 															hr = pVideoGrabber->SetBufferSamples(TRUE);
 															if (SUCCEEDED(hr))
 															{
-
-																hr = pBuild->RenderStream(/*&PIN_CATEGORY_PREVIEW*/NULL, NULL/*&MEDIATYPE_Video*/, pVideoCapture, pVideoGrabberF, pVideoRenderer);  //3,4,5 Параметры - фильтры, которые объединены в граф
-
+																hr = pVideoGrabber->SetCallback(&video_capture_engine, 1);
 																if (SUCCEEDED(hr))
 																{
-																	// Specify the owner window.
-																	CComPtr<IVideoWindow> pVidWin;
-																	OAHWND hWnd = (OAHWND)parameter_hwnd;
 
-																	pGraph->QueryInterface(IID_IVideoWindow, (void **)&pVidWin);
+																	hr = pBuild->RenderStream(/*&PIN_CATEGORY_PREVIEW*/NULL, NULL/*&MEDIATYPE_Video*/, pVideoCapture, pVideoGrabberF, pVideoRenderer);  //3,4,5 Параметры - фильтры, которые объединены в граф
 
-																	pVidWin->put_Owner((OAHWND)hWnd);
-																	pVidWin->put_WindowStyle( WS_CHILD | WS_CLIPSIBLINGS );
+																	if (SUCCEEDED(hr))
+																	{
+																		// Specify the owner window.
+																		CComPtr<IVideoWindow> pVidWin;
+																		OAHWND hWnd = (OAHWND)parameter_hwnd;
 
-																	pVidWin->put_Left(0);
-																	pVidWin->put_Top(0);
-																	pVidWin->put_Width(ENGINE_WINDOWS_SIZE_CX/2);
-																	pVidWin->put_Height(ENGINE_WINDOWS_SIZE_CY/2);
+																		pGraph->QueryInterface(IID_IVideoWindow, (void **)&pVidWin);
 
-																	// Set the owner window to receive event notices.
-																	pGraph->QueryInterface(IID_IMediaEventEx, (void **)&pEvent);
-																	pEvent->SetNotifyWindow((OAHWND)hWnd, 0, 0);
+																		pVidWin->put_Owner((OAHWND)hWnd);
+																		pVidWin->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS);
+
+																		pVidWin->put_Left(0);
+																		pVidWin->put_Top(0);
+																		pVidWin->put_Width(ENGINE_WINDOWS_SIZE_CX / 2);
+																		pVidWin->put_Height(ENGINE_WINDOWS_SIZE_CY / 2);
+
+																		// Set the owner window to receive event notices.
+																		pGraph->QueryInterface(IID_IMediaEventEx, (void **)&pEvent);
+																		pEvent->SetNotifyWindow((OAHWND)hWnd, 0, 0);
+																	}
 																}
 															}
 														}
@@ -318,33 +322,33 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 
 					hr = pDevEnum->CreateClassEnumerator(CLSID_AudioInputDeviceCategory, &pAudioEnum, 0);
 
-					if(SUCCEEDED(hr) && pAudioEnum!=NULL)
+					if (SUCCEEDED(hr) && pAudioEnum != NULL)
 					{
-						if( pAudioEnum->Next(1, &pAudioMoniker,0) == S_OK && pAudioMoniker!=NULL)
+						if (pAudioEnum->Next(1, &pAudioMoniker, 0) == S_OK && pAudioMoniker != NULL)
 						{
 							hr = pAudioMoniker->BindToObject(0, 0, IID_IBaseFilter, (void **)&pAudioCapture);
 
-							if(SUCCEEDED(hr) && pAudioCapture!=NULL)
+							if (SUCCEEDED(hr) && pAudioCapture != NULL)
 							{
 								pGraph->AddFilter(pAudioCapture, L"Audio Capture Filter");
 
 								hr = CoCreateInstance(CLSID_NullRenderer, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pAudioRenderer);
 								//hr = CoCreateInstance(CLSID_AudioRender, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pAudioRenderer);
-								if (SUCCEEDED(hr) && pAudioRenderer!=NULL)
+								if (SUCCEEDED(hr) && pAudioRenderer != NULL)
 								{
 									pGraph->AddFilter(pAudioRenderer, L"Audio Renderer Filter");
 
 									// Create the Sample Grabber filter.
 									hr = CoCreateInstance(CLSID_SampleGrabber, NULL, CLSCTX_INPROC_SERVER,
 										IID_PPV_ARGS(&pAudioGrabberF));
-									if (SUCCEEDED(hr) && pAudioGrabberF!=NULL)
+									if (SUCCEEDED(hr) && pAudioGrabberF != NULL)
 									{
 										hr = pGraph->AddFilter(pAudioGrabberF, L"Audio Sample Grabber");
 										if (SUCCEEDED(hr))
 										{
 											hr = pAudioGrabberF->QueryInterface(IID_ISampleGrabber, (void**)&pAudioGrabber);
 
-											if (SUCCEEDED(hr) && pAudioGrabber!=NULL)
+											if (SUCCEEDED(hr) && pAudioGrabber != NULL)
 											{
 												AM_MEDIA_TYPE mt;
 												ZeroMemory(&mt, sizeof(mt));
@@ -352,7 +356,7 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 												mt.subtype = MEDIASUBTYPE_PCM;
 
 												mt.pbFormat = (LPBYTE)CoTaskMemAlloc(sizeof(WAVEFORMATEX));
-												if(mt.pbFormat!=NULL)
+												if (mt.pbFormat != NULL)
 												{
 													mt.formattype = FORMAT_WaveFormatEx;
 													mt.cbFormat = sizeof(WAVEFORMATEX);
@@ -379,7 +383,7 @@ void CWebCameraPictureDialog::init_capture(HWND parameter_hwnd)
 														hr = pAudioGrabber->SetBufferSamples(TRUE);
 														if (SUCCEEDED(hr))
 														{
-															hr = pAudioGrabber->SetCallback(this,1);
+															hr = pAudioGrabber->SetCallback(this, 1);
 															if (SUCCEEDED(hr))
 															{
 																hr = pBuild->RenderStream(/*&PIN_CATEGORY_PREVIEW*/NULL, NULL/*&MEDIATYPE_Video*/, pAudioCapture, pAudioGrabberF, pAudioRenderer);  //3,4,5 Параметры - фильтры, которые объединены в граф
@@ -413,9 +417,9 @@ void CWebCameraPictureDialog::OnClose()
 	{
 		Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = main_dialog;
 
-		if(local_main_dialog!=NULL)
+		if (local_main_dialog != NULL)
 		{
-			if(local_main_dialog->web_camera_dialog!=NULL)
+			if (local_main_dialog->web_camera_dialog != NULL)
 			{
 				CSingleLock lock(&local_main_dialog->delete_web_camera_dialog_critical_section);
 
@@ -437,17 +441,17 @@ void CWebCameraPictureDialog::OnClose()
 
 void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_image)
 {
-	if(parameter_image==NULL)
+	if (parameter_image == NULL)
 	{
 		return;
 	}
 
-	if(local_web_camera_dialog==NULL)
+	if (local_web_camera_dialog == NULL)
 	{
 		return;
 	}
 
-	if(local_web_camera_dialog->pVideoGrabber==NULL)
+	if (local_web_camera_dialog->pVideoGrabber == NULL)
 	{
 		return;
 	}
@@ -464,7 +468,7 @@ void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CI
 		{
 
 			pBuffer = (BYTE*)CoTaskMemAlloc(cbBuffer);
-			if (pBuffer!=NULL) 
+			if (pBuffer != NULL)
 			{
 				hr = local_web_camera_dialog->pVideoGrabber->GetCurrentBuffer(&cbBuffer, (long*)pBuffer);
 
@@ -480,12 +484,12 @@ void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CI
 					{
 						if
 							(
-							mt.formattype==FORMAT_VideoInfo
-							&&
-							(mt.cbFormat >= sizeof(VIDEOINFOHEADER))
-							&&
-							(mt.pbFormat != NULL)
-							)
+								mt.formattype == FORMAT_VideoInfo
+								&&
+								(mt.cbFormat >= sizeof(VIDEOINFOHEADER))
+								&&
+								(mt.pbFormat != NULL)
+								)
 						{
 							VIDEOINFOHEADER *pVIH = (VIDEOINFOHEADER*)mt.pbFormat;
 
@@ -497,15 +501,15 @@ void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CI
 
 							((BYTE*)(&BFH.bfType))[0] = 'B';
 							((BYTE*)(&BFH.bfType))[1] = 'M';
-							BFH.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER)+cbBuffer;
+							BFH.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + cbBuffer;
 							BFH.bfReserved1;
 							BFH.bfReserved2;
-							BFH.bfOffBits = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+							BFH.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 
 
 							IStream *local_stream;
 
-							HRESULT local_create_IStream_result = CreateStreamOnHGlobal ( 0 , TRUE , &local_stream );
+							HRESULT local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &local_stream);
 
 							{
 								LARGE_INTEGER liBeggining = { 0 };
@@ -515,21 +519,21 @@ void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CI
 
 							ULONG local_bytes_written = 0;
 							{
-								HRESULT local_write_result = local_stream->Write(&BFH,sizeof(BITMAPFILEHEADER),&local_bytes_written);
+								HRESULT local_write_result = local_stream->Write(&BFH, sizeof(BITMAPFILEHEADER), &local_bytes_written);
 							}
 							{
-								HRESULT local_write_result = local_stream->Write(&BIH,sizeof(BITMAPINFOHEADER),&local_bytes_written);
+								HRESULT local_write_result = local_stream->Write(&BIH, sizeof(BITMAPINFOHEADER), &local_bytes_written);
 							}
 							{
-								HRESULT local_write_result = local_stream->Write(pBuffer,cbBuffer,&local_bytes_written);
+								HRESULT local_write_result = local_stream->Write(pBuffer, cbBuffer, &local_bytes_written);
 							}
 
 							parameter_image->Load(local_stream);
 
 							local_stream->Release();
-						}				
-						_FreeMediaType(mt);	
-					}	
+						}
+						_FreeMediaType(mt);
+					}
 				}
 
 				CoTaskMemFree(pBuffer);
@@ -542,17 +546,17 @@ void CaptureVideoSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, CI
 
 void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IStream *parameter_audio_image)
 {
-	if(parameter_audio_image==NULL)
+	if (parameter_audio_image == NULL)
 	{
 		return;
 	}
 
-	if(local_web_camera_dialog==NULL)
+	if (local_web_camera_dialog == NULL)
 	{
 		return;
 	}
 
-	if(local_web_camera_dialog->pAudioGrabber==NULL)
+	if (local_web_camera_dialog->pAudioGrabber == NULL)
 	{
 		return;
 	}
@@ -566,7 +570,7 @@ void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IS
 	if (SUCCEEDED(hr))
 	{
 		pBuffer = (BYTE*)CoTaskMemAlloc(cbBuffer);
-		if (pBuffer!=NULL) 
+		if (pBuffer != NULL)
 		{
 			hr = local_web_camera_dialog->pAudioGrabber->GetCurrentBuffer(&cbBuffer, (long*)pBuffer);
 			if (SUCCEEDED(hr))
@@ -579,7 +583,7 @@ void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IS
 
 				if (SUCCEEDED(hr))
 				{
-					if(mt.formattype==FORMAT_WaveFormatEx)
+					if (mt.formattype == FORMAT_WaveFormatEx)
 					{
 						WAVEFORMATEX *wave_format_ex = (WAVEFORMATEX *)mt.pbFormat;
 
@@ -590,16 +594,16 @@ void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IS
 						local_wave.SetSize(cbBuffer);
 						local_wave.SetChannels(wave_format_ex->nChannels);
 						local_wave.SetBitsPerSample(wave_format_ex->wBitsPerSample);
-						local_wave.SetSampleRate(wave_format_ex->nAvgBytesPerSec/(wave_format_ex->nChannels << 1));
+						local_wave.SetSampleRate(wave_format_ex->nAvgBytesPerSec / (wave_format_ex->nChannels << 1));
 						local_wave.SetByteRate(wave_format_ex->nAvgBytesPerSec);
 
 						//local_wave.Play();
 
 						//local_wave.Save(L"c:\\temp\\cwave_source.wav");
 						local_wave.Save(parameter_audio_image);
-					}				
-					_FreeMediaType(mt);	
-				}	
+					}
+					_FreeMediaType(mt);
+				}
 			}
 			CoTaskMemFree(pBuffer);
 
@@ -608,20 +612,20 @@ void CaptureAudioSampleShot(CWebCameraPictureDialog *local_web_camera_dialog, IS
 	}
 }
 
-STDMETHODIMP CWebCameraPictureDialog::SampleCB( double SampleTime, IMediaSample *pSample )
+STDMETHODIMP CWebCameraPictureDialog::SampleCB(double SampleTime, IMediaSample *pSample)
 {
 	return E_NOTIMPL;
 }
 
-STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer, long BufferLen )
+STDMETHODIMP CWebCameraPictureDialog::BufferCB(double SampleTime, BYTE *pBuffer, long BufferLength)
 {
 	Captured_Audio_Data_List_ITEM arrived_audio_data_ip_4;
-	ZeroMemory(&arrived_audio_data_ip_4,sizeof(Captured_Audio_Data_List_ITEM));
+	ZeroMemory(&arrived_audio_data_ip_4, sizeof(Captured_Audio_Data_List_ITEM));
 
 	arrived_audio_data_ip_4.SampleTime = SampleTime;
 
 	Captured_Audio_Data_List_ITEM arrived_audio_data_ip_6;
-	ZeroMemory(&arrived_audio_data_ip_6,sizeof(Captured_Audio_Data_List_ITEM));
+	ZeroMemory(&arrived_audio_data_ip_6, sizeof(Captured_Audio_Data_List_ITEM));
 
 	arrived_audio_data_ip_6.SampleTime = SampleTime;
 
@@ -629,9 +633,9 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 
 	Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = main_dialog;
 
-	if(local_main_dialog!=NULL)
+	if (local_main_dialog != NULL)
 	{
-		if(local_main_dialog->get_command_terminate_application())
+		if (local_main_dialog->get_command_terminate_application())
 		{
 			return S_OK;
 		}
@@ -639,26 +643,9 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 		{
 			int local_int = 0;
 			{
-				DWORD dwWaitResult;
-
-				dwWaitResult = WaitForSingleObject( 
-					local_main_dialog->do_not_terminate_application_event, // event handle
-					0);    // zero wait
-
-				if(dwWaitResult==WAIT_OBJECT_0)
-				{
-					// Event object was signaled		
-					local_int = local_main_dialog->button_send_audio.GetCheck();
-				}
-				else
-				{
-					if(local_main_dialog->get_command_terminate_application())
-					{
-						return S_OK;
-					}
-				}
+				local_int = local_int = local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_SEND_MICROPHONE_AUDIO_state;
 			}
-			if(local_int!=0)
+			if (local_int != 0)
 			{
 				AM_MEDIA_TYPE mt;
 				ZeroMemory(&mt, sizeof(mt));
@@ -667,18 +654,18 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 
 				if (SUCCEEDED(hr))
 				{
-					if(mt.formattype==FORMAT_WaveFormatEx)
+					if (mt.formattype == FORMAT_WaveFormatEx)
 					{
 						WAVEFORMATEX *wave_format_ex = (WAVEFORMATEX *)mt.pbFormat;
 
 						CWave local_wave;
 
-						local_wave.SetData(pBuffer, BufferLen);
+						local_wave.SetData(pBuffer, BufferLength);
 
-						local_wave.SetSize(BufferLen);
+						local_wave.SetSize(BufferLength);
 						local_wave.SetChannels(wave_format_ex->nChannels);
 						local_wave.SetBitsPerSample(wave_format_ex->wBitsPerSample);
-						local_wave.SetSampleRate(wave_format_ex->nAvgBytesPerSec/(wave_format_ex->nChannels << 1));
+						local_wave.SetSampleRate(wave_format_ex->nAvgBytesPerSec / (wave_format_ex->nChannels << 1));
 						local_wave.SetByteRate(wave_format_ex->nAvgBytesPerSec);
 
 						//local_wave.Play();
@@ -688,11 +675,11 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 						HRESULT local_create_IStream_result = S_OK;
 
 						{
-							local_create_IStream_result = CreateStreamOnHGlobal ( 0 , TRUE , &arrived_audio_data_ip_4.audio_stream );
+							local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &arrived_audio_data_ip_4.audio_stream);
 
-							if(SUCCEEDED(local_create_IStream_result))
+							if (SUCCEEDED(local_create_IStream_result))
 							{
-								if(local_wave.Save(arrived_audio_data_ip_4.audio_stream)==TRUE)
+								if (local_wave.Save(arrived_audio_data_ip_4.audio_stream) == TRUE)
 								{
 									audio_captured_fragments_list_ip_4.push_back(arrived_audio_data_ip_4);
 								}
@@ -700,11 +687,11 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 						}
 
 						{
-							local_create_IStream_result = CreateStreamOnHGlobal ( 0 , TRUE , &arrived_audio_data_ip_6.audio_stream );
+							local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &arrived_audio_data_ip_6.audio_stream);
 
-							if(SUCCEEDED(local_create_IStream_result))
+							if (SUCCEEDED(local_create_IStream_result))
 							{
-								if(local_wave.Save(arrived_audio_data_ip_6.audio_stream)==TRUE)
+								if (local_wave.Save(arrived_audio_data_ip_6.audio_stream) == TRUE)
 								{
 									audio_captured_fragments_list_ip_6.push_back(arrived_audio_data_ip_6);
 								}
@@ -712,8 +699,8 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 						}
 
 						hr = local_create_IStream_result;
-					}				
-					_FreeMediaType(mt);	
+					}
+					_FreeMediaType(mt);
 				}
 			}
 		}
@@ -724,14 +711,14 @@ STDMETHODIMP CWebCameraPictureDialog::BufferCB( double SampleTime, BYTE *pBuffer
 
 void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image)
 {
-	if(local_web_camera_dialog==NULL)
+	if (local_web_camera_dialog == NULL)
 	{
 		return;
 	}
 
-	for(;;)
+	for (;;)
 	{
-		if(local_web_camera_dialog==NULL)
+		if (local_web_camera_dialog == NULL)
 		{
 			return;
 		}
@@ -740,16 +727,16 @@ void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_ca
 
 		local_lock.Lock();
 
-		if(local_web_camera_dialog->audio_captured_fragments_list_ip_4.size()==0)
+		if (local_web_camera_dialog->audio_captured_fragments_list_ip_4.size() == 0)
 		{
 			Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = (Cstl_network_ip_4_ip_6_udp_engineDialog*)local_web_camera_dialog->main_dialog;
 
-			if(local_main_dialog==NULL)
+			if (local_main_dialog == NULL)
 			{
 				return;
 			}
 
-			if(local_main_dialog->get_command_threads_audio_stop())
+			if (local_main_dialog->get_command_threads_audio_stop())
 			{
 				return;
 			}
@@ -761,7 +748,7 @@ void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_ca
 		}
 		else
 		{
-			if(local_web_camera_dialog->audio_captured_fragments_list_ip_4.begin()!=local_web_camera_dialog->audio_captured_fragments_list_ip_4.end())
+			if (local_web_camera_dialog->audio_captured_fragments_list_ip_4.begin() != local_web_camera_dialog->audio_captured_fragments_list_ip_4.end())
 			{
 				CWebCameraPictureDialog::Captured_Audio_Data_List_ITEM local_item = *local_web_camera_dialog->audio_captured_fragments_list_ip_4.begin();
 
@@ -779,14 +766,14 @@ void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_ca
 
 void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image)
 {
-	if(local_web_camera_dialog==NULL)
+	if (local_web_camera_dialog == NULL)
 	{
 		return;
 	}
 
-	for(;;)
+	for (;;)
 	{
-		if(local_web_camera_dialog==NULL)
+		if (local_web_camera_dialog == NULL)
 		{
 			return;
 		}
@@ -795,16 +782,16 @@ void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_ca
 
 		local_lock.Lock();
 
-		if(local_web_camera_dialog->audio_captured_fragments_list_ip_6.size()==0)
+		if (local_web_camera_dialog->audio_captured_fragments_list_ip_6.size() == 0)
 		{
 			Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = (Cstl_network_ip_4_ip_6_udp_engineDialog*)local_web_camera_dialog->main_dialog;
 
-			if(local_main_dialog==NULL)
+			if (local_main_dialog == NULL)
 			{
 				return;
 			}
 
-			if(local_main_dialog->get_command_threads_audio_stop())
+			if (local_main_dialog->get_command_threads_audio_stop())
 			{
 				return;
 			}
@@ -816,7 +803,7 @@ void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_ca
 		}
 		else
 		{
-			if(local_web_camera_dialog->audio_captured_fragments_list_ip_6.begin()!=local_web_camera_dialog->audio_captured_fragments_list_ip_6.end())
+			if (local_web_camera_dialog->audio_captured_fragments_list_ip_6.begin() != local_web_camera_dialog->audio_captured_fragments_list_ip_6.end())
 			{
 				CWebCameraPictureDialog::Captured_Audio_Data_List_ITEM local_item = *local_web_camera_dialog->audio_captured_fragments_list_ip_6.begin();
 
@@ -833,25 +820,25 @@ void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_ca
 }
 
 
-HRESULT STDMETHODCALLTYPE CWebCameraPictureDialog::QueryInterface( 
+HRESULT STDMETHODCALLTYPE CWebCameraPictureDialog::QueryInterface(
 	/* [in] */ REFIID riid,
 	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
 {
-	if(ppvObject==NULL)
+	if (ppvObject == NULL)
 	{
 		return E_POINTER;
 	}
 
-	if(*ppvObject==NULL)
+	if (*ppvObject == NULL)
 	{
 		return E_POINTER;
 	}
 
-	if( riid == IID_ISampleGrabberCB || riid == IID_IUnknown )
+	if (riid == IID_ISampleGrabberCB || riid == IID_IUnknown)
 	{
-		*ppvObject = (void *) static_cast<ISampleGrabberCB*> ( this );
+		*ppvObject = (void *) static_cast<ISampleGrabberCB*> (this);
 		return NOERROR;
-	}    
+	}
 
 	return E_NOINTERFACE;
 }
@@ -868,17 +855,17 @@ ULONG STDMETHODCALLTYPE CWebCameraPictureDialog::Release(void)
 
 void CaptureVideoSampleShotIntoStream(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_stream)
 {
-//	if(parameter_stream==NULL)
-//	{
-//		return;
-//	}
+	//	if(parameter_stream==NULL)
+	//	{
+	//		return;
+	//	}
 
-	if(local_web_camera_dialog==NULL)
+	if (local_web_camera_dialog == NULL)
 	{
 		return;
 	}
 
-	if(local_web_camera_dialog->pVideoGrabber==NULL)
+	if (local_web_camera_dialog->pVideoGrabber == NULL)
 	{
 		return;
 	}
@@ -895,7 +882,7 @@ void CaptureVideoSampleShotIntoStream(CWebCameraPictureDialog *local_web_camera_
 		{
 
 			pBuffer = (BYTE*)CoTaskMemAlloc(cbBuffer);
-			if (pBuffer!=NULL) 
+			if (pBuffer != NULL)
 			{
 				hr = local_web_camera_dialog->pVideoGrabber->GetCurrentBuffer(&cbBuffer, (long*)pBuffer);
 
@@ -911,12 +898,12 @@ void CaptureVideoSampleShotIntoStream(CWebCameraPictureDialog *local_web_camera_
 					{
 						if
 							(
-							mt.formattype==FORMAT_VideoInfo
-							&&
-							(mt.cbFormat >= sizeof(VIDEOINFOHEADER))
-							&&
-							(mt.pbFormat != NULL)
-							)
+								mt.formattype == FORMAT_VideoInfo
+								&&
+								(mt.cbFormat >= sizeof(VIDEOINFOHEADER))
+								&&
+								(mt.pbFormat != NULL)
+								)
 						{
 							VIDEOINFOHEADER *pVIH = (VIDEOINFOHEADER*)mt.pbFormat;
 
@@ -928,39 +915,39 @@ void CaptureVideoSampleShotIntoStream(CWebCameraPictureDialog *local_web_camera_
 
 							((BYTE*)(&BFH.bfType))[0] = 'B';
 							((BYTE*)(&BFH.bfType))[1] = 'M';
-							BFH.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER)+cbBuffer;
+							BFH.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + cbBuffer;
 							BFH.bfReserved1;
 							BFH.bfReserved2;
-							BFH.bfOffBits = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+							BFH.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 
-							
+
 							IStream *local_stream;
 
-							HRESULT local_create_IStream_result = CreateStreamOnHGlobal ( 0 , TRUE , &local_stream );
+							HRESULT local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &local_stream);
 
-							if(local_stream!=NULL)
+							if (local_stream != NULL)
 							{
 								{
 									LARGE_INTEGER liBeggining = { 0 };
 
 									//		received_stream->Seek(liBeggining, STREAM_SEEK_END, NULL);
 								}
-							
+
 								ULONG local_bytes_written = 0;
 								{
-									HRESULT local_write_result = local_stream->Write(&BFH,sizeof(BITMAPFILEHEADER),&local_bytes_written);
+									HRESULT local_write_result = local_stream->Write(&BFH, sizeof(BITMAPFILEHEADER), &local_bytes_written);
 								}
 								{
-									HRESULT local_write_result = local_stream->Write(&BIH,sizeof(BITMAPINFOHEADER),&local_bytes_written);
+									HRESULT local_write_result = local_stream->Write(&BIH, sizeof(BITMAPINFOHEADER), &local_bytes_written);
 								}
 								{
-									HRESULT local_write_result = local_stream->Write(pBuffer,cbBuffer,&local_bytes_written);
+									HRESULT local_write_result = local_stream->Write(pBuffer, cbBuffer, &local_bytes_written);
 								}
 								local_stream->Clone(parameter_stream);
 							}
-						}				
-						_FreeMediaType(mt);	
-					}	
+						}
+						_FreeMediaType(mt);
+					}
 				}
 
 				CoTaskMemFree(pBuffer);
@@ -971,3 +958,351 @@ void CaptureVideoSampleShotIntoStream(CWebCameraPictureDialog *local_web_camera_
 	}
 }
 
+
+
+void CaptureWebCameraVideoSampleGetFromTheList_ip_4_internal(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_video_image)
+{
+	if (local_web_camera_dialog == NULL)
+	{
+		return;
+	}
+
+	for (;;)
+	{
+		if (local_web_camera_dialog == NULL)
+		{
+			return;
+		}
+
+		CSingleLock local_lock(&local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_critical_section);
+
+		local_lock.Lock();
+
+		if (local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_4.size() == 0)
+		{
+			Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = (Cstl_network_ip_4_ip_6_udp_engineDialog*)local_web_camera_dialog->main_dialog;
+
+			if (local_main_dialog == NULL)
+			{
+				return;
+			}
+
+			if (local_main_dialog->get_command_threads_video_stop())
+			{
+				return;
+			}
+			else
+			{
+				Sleep(1);
+				continue;
+			}
+		}
+		else
+		{
+			if (local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_4.begin() != local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_4.end())
+			{
+				CWebCameraPictureDialog::Video::Captured_Video_Data_List_ITEM local_item = *local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_4.begin();
+
+				local_item.video_stream->Clone(parameter_video_image);
+
+				local_item.video_stream->Release();
+
+				local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_4.pop_front();
+			}
+
+			break;
+		}
+	}
+}
+
+void CaptureWebCameraVideoSampleGetFromTheList_ip_6_internal(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_video_image)
+{
+	if (local_web_camera_dialog == NULL)
+	{
+		return;
+	}
+
+	for (;;)
+	{
+		if (local_web_camera_dialog == NULL)
+		{
+			return;
+		}
+
+		CSingleLock local_lock(&local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_critical_section);
+
+		local_lock.Lock();
+
+		if (local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_6.size() == 0)
+		{
+			Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = (Cstl_network_ip_4_ip_6_udp_engineDialog*)local_web_camera_dialog->main_dialog;
+
+			if (local_main_dialog == NULL)
+			{
+				return;
+			}
+
+			if (local_main_dialog->get_command_threads_video_stop())
+			{
+				return;
+			}
+			else
+			{
+				Sleep(1);
+				continue;
+			}
+		}
+		else
+		{
+			if (local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_6.begin() != local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_6.end())
+			{
+				CWebCameraPictureDialog::Video::Captured_Video_Data_List_ITEM local_item = *local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_6.begin();
+
+				local_item.video_stream->Clone(parameter_video_image);
+
+				local_item.video_stream->Release();
+
+				local_web_camera_dialog->video_capture_engine.video_captured_fragments_list_ip_6.pop_front();
+			}
+
+			break;
+		}
+	}
+}
+
+STDMETHODIMP CWebCameraPictureDialog::Video::BufferCB(double SampleTime, BYTE *pBuffer, long BufferLength)
+{
+	Captured_Video_Data_List_ITEM arrived_video_data_ip_4;
+	ZeroMemory(&arrived_video_data_ip_4, sizeof(Captured_Video_Data_List_ITEM));
+
+	arrived_video_data_ip_4.SampleTime = SampleTime;
+
+	Captured_Video_Data_List_ITEM arrived_video_data_ip_6;
+	ZeroMemory(&arrived_video_data_ip_6, sizeof(Captured_Video_Data_List_ITEM));
+
+	arrived_video_data_ip_6.SampleTime = SampleTime;
+
+	HRESULT hr = S_OK;
+
+	if (parent_dialog != NULL)
+	{
+
+		Cstl_network_ip_4_ip_6_udp_engineDialog *local_main_dialog = parent_dialog->main_dialog;
+
+		if (local_main_dialog != NULL)
+		{
+			if (local_main_dialog->get_command_terminate_application())
+			{
+				return S_OK;
+			}
+
+			{
+				int local_int = 0;
+				{
+					local_int = local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_SEND_WEB_CAMERA_VIDEO_state;
+				}
+				if (local_int != 0)
+				{
+					AM_MEDIA_TYPE mt;
+					ZeroMemory(&mt, sizeof(mt));
+
+					hr = parent_dialog->pVideoGrabber->GetConnectedMediaType(&mt);
+
+					if (SUCCEEDED(hr))
+					{
+						if
+							(
+								mt.formattype == FORMAT_VideoInfo
+								&&
+								(mt.cbFormat >= sizeof(VIDEOINFOHEADER))
+								&&
+								(mt.pbFormat != NULL)
+								)
+						{
+							VIDEOINFOHEADER *pVIH = (VIDEOINFOHEADER*)mt.pbFormat;
+
+							BITMAPINFOHEADER BIH = pVIH->bmiHeader;
+
+							BITMAPFILEHEADER BFH;
+
+							ZeroMemory(&BFH, sizeof(BITMAPFILEHEADER));
+
+							((BYTE*)(&BFH.bfType))[0] = 'B';
+							((BYTE*)(&BFH.bfType))[1] = 'M';
+							BFH.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + BufferLength;
+							BFH.bfReserved1;
+							BFH.bfReserved2;
+							BFH.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+
+							HRESULT local_create_IStream_result = S_OK;
+
+							IStream *local_stream;
+
+							{
+								local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &local_stream);
+
+								if (SUCCEEDED(local_create_IStream_result))
+								{
+
+									if (local_stream != NULL)
+									{
+										{
+											LARGE_INTEGER liBeggining = { 0 };
+
+											//		received_stream->Seek(liBeggining, STREAM_SEEK_END, NULL);
+										}
+
+										ULONG local_bytes_written = 0;
+										{
+											HRESULT local_write_result = local_stream->Write(&BFH, sizeof(BITMAPFILEHEADER), &local_bytes_written);
+										}
+										{
+											HRESULT local_write_result = local_stream->Write(&BIH, sizeof(BITMAPINFOHEADER), &local_bytes_written);
+										}
+										{
+											HRESULT local_write_result = local_stream->Write(pBuffer, BufferLength, &local_bytes_written);
+										}
+
+
+										if (SUCCEEDED(local_create_IStream_result))
+										{
+											local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &arrived_video_data_ip_4.video_stream);
+
+											if (SUCCEEDED(local_create_IStream_result))
+											{
+												local_create_IStream_result = local_stream->Clone(&arrived_video_data_ip_4.video_stream);
+
+												if (SUCCEEDED(local_create_IStream_result))
+												{
+													CSingleLock local_lock(&video_captured_fragments_list_critical_section);
+													local_lock.Lock();
+
+													video_captured_fragments_list_ip_4.push_back(arrived_video_data_ip_4);
+												}
+											}
+										}
+
+										if (SUCCEEDED(local_create_IStream_result))
+										{
+											local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &arrived_video_data_ip_6.video_stream);
+
+											if (SUCCEEDED(local_create_IStream_result))
+											{
+												local_create_IStream_result = local_stream->Clone(&arrived_video_data_ip_6.video_stream);
+
+												if (SUCCEEDED(local_create_IStream_result))
+												{
+													CSingleLock local_lock(&video_captured_fragments_list_critical_section);
+													local_lock.Lock();
+
+													video_captured_fragments_list_ip_6.push_back(arrived_video_data_ip_6);
+												}
+											}
+										}
+
+										local_stream->Release();
+									}
+								}
+							}
+
+							hr = local_create_IStream_result;
+						}
+						_FreeMediaType(mt);
+					}
+				}
+			}
+		}
+	}
+
+	return hr;
+}
+
+STDMETHODIMP CWebCameraPictureDialog::Video::SampleCB(double SampleTime, IMediaSample *pSample)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CWebCameraPictureDialog::Video::QueryInterface(
+	/* [in] */ REFIID riid,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
+{
+	if (ppvObject == NULL)
+	{
+		return E_POINTER;
+	}
+
+	if (*ppvObject == NULL)
+	{
+		return E_POINTER;
+	}
+
+	if (riid == IID_ISampleGrabberCB || riid == IID_IUnknown)
+	{
+		*ppvObject = (void *) static_cast<ISampleGrabberCB*> (this);
+		return NOERROR;
+	}
+
+	return E_NOINTERFACE;
+}
+
+ULONG STDMETHODCALLTYPE CWebCameraPictureDialog::Video::AddRef(void)
+{
+	return 1;
+}
+
+ULONG STDMETHODCALLTYPE CWebCameraPictureDialog::Video::Release(void)
+{
+	return 0;
+}
+
+void CaptureWebCameraVideoSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image)
+{
+	HRESULT local_create_IStream_result = S_OK;
+
+	IStream *local_stream;
+
+	{
+		local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &local_stream);
+
+		if (SUCCEEDED(local_create_IStream_result))
+		{
+			if (local_stream != NULL)
+			{
+				CaptureWebCameraVideoSampleGetFromTheList_ip_4_internal(local_web_camera_dialog, &local_stream);
+
+				if (parameter_video_image != NULL)
+				{
+					local_create_IStream_result = parameter_video_image->Load(local_stream);
+				}
+
+				local_stream->Release();
+			}
+		}
+	}
+}
+void CaptureWebCameraVideoSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image)
+{
+	HRESULT local_create_IStream_result = S_OK;
+
+	IStream *local_stream;
+
+	{
+		local_create_IStream_result = CreateStreamOnHGlobal(0, TRUE, &local_stream);
+
+		if (SUCCEEDED(local_create_IStream_result))
+		{
+			if (local_stream != NULL)
+			{
+				CaptureWebCameraVideoSampleGetFromTheList_ip_6_internal(local_web_camera_dialog, &local_stream);
+
+				if (parameter_video_image != NULL)
+				{
+					local_create_IStream_result = parameter_video_image->Load(local_stream);
+				}
+
+				local_stream->Release();
+			}
+		}
+	}
+}

@@ -6940,7 +6940,8 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 			lock.Lock();
 
 			//CaptureWndShot(local_main_dialog->web_camera_dialog->m_hWnd,&local_image,ENGINE_WINDOWS_SIZE_CX/2,ENGINE_WINDOWS_SIZE_CY/2);
-			CaptureVideoSampleShot(local_main_dialog->web_camera_dialog, &local_image);
+			//CaptureVideoSampleShot(local_main_dialog->web_camera_dialog, &local_image);
+			CaptureWebCameraVideoSampleGetFromTheList_ip_4(local_main_dialog->web_camera_dialog, &local_image);
 		}
 
 		CComPtr<IStream> local_stream;
@@ -7663,7 +7664,8 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 			lock.Lock();
 
 			//CaptureWndShot(local_main_dialog->web_camera_dialog->m_hWnd,&local_image,ENGINE_WINDOWS_SIZE_CX/2,ENGINE_WINDOWS_SIZE_CY/2);
-			CaptureVideoSampleShot(local_main_dialog->web_camera_dialog, &local_image);
+			//CaptureVideoSampleShot(local_main_dialog->web_camera_dialog, &local_image);
+			CaptureWebCameraVideoSampleGetFromTheList_ip_6(local_main_dialog->web_camera_dialog, &local_image);
 		}
 
 		CComPtr<IStream> local_stream;
