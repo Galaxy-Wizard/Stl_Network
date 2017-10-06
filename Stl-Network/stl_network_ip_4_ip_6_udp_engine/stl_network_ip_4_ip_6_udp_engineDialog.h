@@ -265,7 +265,7 @@ public:
 public:
 	afx_msg void OnBnClickedButtonStartListen();
 	afx_msg void OnBnClickedButtonConnect();
-	afx_msg void OnBnClickedButtonSend();
+	afx_msg void OnBnClickedButtonDo();
 	afx_msg void OnBnClickedButtonClose();
 	afx_msg void OnClose();
 	afx_msg void OnBnClickedButtonRegister();

@@ -232,3 +232,7 @@
 /Stl-Network/.vs/Stl-Network/v15/ipch/STL_NETWORK_IP_4_IP_6_UDP_ENGINE-fe1bb991/STL NETWORK ENGINE-2ece2dbf.ipch
 /Stl-Network/stl_network_ip_4_ip_6_udp_engine/traverse.txt
 /.vs/slnx.sqlite-journal
+*.PNG
+*.WAV
+*.JPEG
+*.tlog

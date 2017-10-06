@@ -401,7 +401,7 @@ BEGIN_MESSAGE_MAP(Cstl_network_ip_4_ip_6_udp_engineDialog, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BUTTON_START_LISTEN, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonStartListen)
 	ON_BN_CLICKED(IDC_BUTTON_CONNECT, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonConnect)
-	ON_BN_CLICKED(IDC_BUTTON_SEND, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonSend)
+	ON_BN_CLICKED(IDC_BUTTON_DO, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonDo)
 	ON_BN_CLICKED(ID_BUTTON_CLOSE, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonClose)
 	ON_WM_CLOSE()
 	ON_BN_CLICKED(IDC_BUTTON_REGISTER, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonRegister)
@@ -750,7 +750,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonConnect()
 }
 
 
-void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonSend()
+void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonDo()
 {
 	// TODO: добавьте свой код обработчика уведомлений
 
