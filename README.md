@@ -10,4 +10,4 @@ https://cloud.mail.ru/public/JqQw/4iPvT51zS
 2) C:\Galaxy\Решения\boost_1_64_0 ,
 3) C:\Galaxy\Решения\xerces-c-3.1.4 .
 
-Для построения решения я использую Visual Studio 2017 Community Version 15.1.
+Для построения решения я использую Visual Studio 2017 Community Version 15.3.
