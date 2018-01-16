@@ -2932,8 +2932,8 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 
 			if (parameter_buffer_size == int(service_signature_definition_length))
 			{
-				CString local_chat;
-				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+				CString local_chat;				
+				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 				if (local_main_dialog->get_command_terminate_application())
 				{
@@ -2961,7 +2961,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 				if (parameter_buffer_size > int(service_signature_definition_length))
 				{
 					//CString local_chat;
-					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 					if (local_main_dialog->get_command_terminate_application())
 					{
@@ -2976,7 +2976,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 					if (local_message[0] != L'/')
 					{
 						CString local_chat;
-						local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+						local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 						if (local_main_dialog->get_command_terminate_application())
 						{
@@ -3044,7 +3044,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						if (local_command_received == command_register)
 						{
 							CString local_chat;
-							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3112,7 +3112,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						if (local_command_received == command_execute_application)
 						{
 							CString local_chat;
-							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3175,24 +3175,33 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//							CString local_chat;
-							//							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);
+							}
+														local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
 							//							if(local_command_parameter_received.GetLength()==0)
 							{
@@ -3225,7 +3234,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3246,24 +3255,33 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//							CString local_chat;
-							//							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);								
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);								
+							}
+														local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
 							//							if(local_command_parameter_received.GetLength()==0)
 							{
@@ -3296,7 +3314,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3317,24 +3335,33 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//CString local_chat;
-							//local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);
+							}
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
 							//if(local_command_parameter_received.GetLength()==0)
 							{
@@ -3367,7 +3394,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3457,7 +3484,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 			if (parameter_buffer_size == int(service_signature_definition_length))
 			{
 				CString local_chat;
-				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 				if (local_main_dialog->get_command_terminate_application())
 				{
@@ -3484,7 +3511,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 				if (parameter_buffer_size > int(service_signature_definition_length))
 				{
 					//CString local_chat;
-					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 					if (local_main_dialog->get_command_terminate_application())
 					{
@@ -3499,7 +3526,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 					if (local_message[0] != L'/')
 					{
 						CString local_chat;
-						local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+						local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 						if (local_main_dialog->get_command_terminate_application())
 						{
@@ -3567,7 +3594,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						if (local_command_received == command_register)
 						{
 							CString local_chat;
-							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3635,7 +3662,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						if (local_command_received == command_execute_application)
 						{
 							CString local_chat;
-							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3698,24 +3725,33 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//							CString local_chat;
-							//							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);
+							}
+														local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
 							//							if(local_command_parameter_received.GetLength()==0)
 							{
@@ -3748,7 +3784,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3769,26 +3805,35 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//							CString local_chat;
-							//							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
-							//							if(local_command_parameter_received.GetLength()==0)
+														local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
+							}
+														if(local_command_parameter_received.GetLength()==0)
 							{
 								local_main_dialog->PrepareWebCameraVideo(parameter_socket_address_peer_ip_6.DottedDecimal(), data_buffer, data_buffer_length);
 							}
@@ -3819,7 +3864,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -3840,24 +3885,33 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
-							//CString local_chat;
-							//local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
+							CString local_chat;
+							local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							//local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"Команда \"") + local_command_received + CString(L"\"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
 								break;
 							}
 							{
-								//list_chat_AddString(local_main_dialog,local_chat);
+								list_chat_AddString(local_main_dialog,local_chat);
+							}
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+
+							if (local_main_dialog->get_command_terminate_application())
+							{
+								break;
+							}
+							{
+								list_chat_AddString(local_main_dialog,local_chat);
 							}
 							//if(local_command_parameter_received.GetLength()==0)
 							{
@@ -3890,7 +3944,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							{
 								list_chat_AddString(local_main_dialog, local_chat);
 							}
-							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L"\r\n");
+							local_chat = CString(L"От ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
 
 							if (local_main_dialog->get_command_terminate_application())
 							{
@@ -4990,8 +5044,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PrepareAudio(CString parameter_str
 			int local_IDC_CHECK_RETRANSLATE_MICROPHONE_state = 0;
 
 			{
-				CSingleLock lock(&GUI_update_critical_section);
-				lock.Lock();
+				//CSingleLock lock(&GUI_update_critical_section);
+				//lock.Lock();
 
 				local_IDC_CHECK_RETRANSLATE_MICROPHONE_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_MICROPHONE_state;
 			}
@@ -5073,8 +5127,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PlayAudio(CString parameter_string
 				int local_IDC_CHECK_SAVE_SOUND_state = 0;
 
 				{
-					CSingleLock lock(&GUI_update_critical_section);
-					lock.Lock();
+					//CSingleLock lock(&GUI_update_critical_section);
+					//lock.Lock();
 
 					local_IDC_CHECK_SAVE_SOUND_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_MICROPHONE_SOUND_state;
 				}
@@ -5112,8 +5166,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PlayAudio(CString parameter_string
 				int local_IDC_CHECK_RETRANSLATE_MICROPHONE_state = 0;
 
 				{
-					CSingleLock lock(&GUI_update_critical_section);
-					lock.Lock();
+					//CSingleLock lock(&GUI_update_critical_section);
+					//lock.Lock();
 
 					local_IDC_CHECK_RETRANSLATE_MICROPHONE_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_MICROPHONE_state;
 				}
@@ -5234,8 +5288,8 @@ void CaptureScreenShot(CImage *parameter_image)
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSendVideo()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SEND_VIDEO_state = button_send_video.GetCheck();
 
@@ -6670,8 +6724,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonClearChat()
 
 	lock.Lock();
 
-	CSingleLock lock_2(&GUI_update_critical_section);
-	lock_2.Lock();
+	//CSingleLock lock_2(&GUI_update_critical_section);
+	//lock_2.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.clear();
 
@@ -6684,8 +6738,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedButtonClearChat()
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSendWebCameraVideo()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SEND_WEB_CAMERA_VIDEO_state = button_send_web_camera_video.GetCheck();
 
@@ -8323,8 +8377,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PrepareWebCameraVideo(CString para
 			int local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = 0;
 
 			{
-				CSingleLock lock(&GUI_update_critical_section);
-				lock.Lock();
+				//CSingleLock lock(&GUI_update_critical_section);
+				//lock.Lock();
 
 				local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state;
 			}
@@ -8463,8 +8517,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::DrawWebCameraVideo(CString paramet
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableVideo()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_VIDEO_state = button_enable_draw_video.GetCheck();
 
@@ -8539,8 +8593,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableVideo()
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableSound()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_SOUND_state = button_enable_play_audio.GetCheck();
 
@@ -10130,8 +10184,8 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSendMicrophoneAudio()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SEND_MICROPHONE_AUDIO_state = button_send_audio.GetCheck();
 
@@ -10323,8 +10377,8 @@ UINT __cdecl datagram_play_audio_connection_thread(LPVOID parameter)
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableShowWebCamera()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_SHOW_WEB_CAMERA_state = button_enable_web_camera.GetCheck();
 
@@ -10379,27 +10433,30 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 	{
 		if (get_command_terminate_application())
 		{
-			return;
+			goto OnTimer_Exit;
 		}
 
 		CSingleLock lock(&GUI_update_critical_section);
 		lock.Lock();
 
 		{
+			CString list_chat_current_item_label = CString();
+			int list_chat_current_is_checked = 0;
 			for (; GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.begin() != GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.end();)
 			{
 				std::list<GUI_LIST_CONTROL>::iterator list_chat_items_counter = GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.begin();
 
 				if (list_chat_items_counter != GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.end())
 				{
-					CString list_chat_current_item_label = list_chat_items_counter->label;
-					list_chat.AddString(list_chat_current_item_label);																//DDX_Control(pDX, IDC_LIST_CHAT, list_chat);
-					list_chat.SetSel(list_nodes.FindStringExact(0, list_chat_current_item_label), list_chat_items_counter->is_checked);
+					list_chat_current_item_label = list_chat_items_counter->label;
+					list_chat_current_is_checked = list_chat_items_counter->is_checked;
+					list_chat.AddString(list_chat_current_item_label);																//DDX_Control(pDX, IDC_LIST_CHAT, list_chat);					
 
 					GUI_CONTROLS_STATE_data.IDC_LIST_CHAT_state.pop_front();
 				}
 				else
 				{
+					//list_chat.SetSel(list_chat.FindStringExact(0, list_chat_current_item_label), list_chat_current_is_checked);
 					break;
 				}
 			}
@@ -10450,7 +10507,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 		lock.Lock();
 
 		//	Сборка и отрисовка
-		std::list<STREAM_FRAME_INFORMATION>::iterator current_video_frame_stream = received_video_frame_stream.begin();
+		auto current_video_frame_stream = received_video_frame_stream.begin();
 
 		for (; current_video_frame_stream != received_video_frame_stream.end(); current_video_frame_stream++)
 		{
@@ -10462,7 +10519,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 
 					for
 						(
-							std::list<FRAME>::iterator current_video_frame = current_video_frame_stream->frames.begin()
+							auto current_video_frame = current_video_frame_stream->frames.begin()
 							;
 							current_video_frame != current_video_frame_stream->frames.end()
 							;
@@ -10486,7 +10543,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 							UINT frame_size = 0;
 
 							for (
-								std::list<FRAME_PART>::iterator local_frame_parts_iterator = current_video_frame->frame_parts.begin()
+								auto local_frame_parts_iterator = current_video_frame->frame_parts.begin()
 								;
 								local_frame_parts_iterator != current_video_frame->frame_parts.end()
 								;
@@ -10500,6 +10557,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 
 							UINT current_buffer_offset = 0;
 
+							CTime frame_arrival_time;
+
 							for
 								(
 									UINT local_parts_counter = 1
@@ -10510,7 +10569,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 									)
 							{
 								for (
-									std::list<FRAME_PART>::iterator local_frame_parts_iterator = current_video_frame->frame_parts.begin()
+									auto local_frame_parts_iterator = current_video_frame->frame_parts.begin()
 									;
 									local_frame_parts_iterator != current_video_frame->frame_parts.end()
 									;
@@ -10523,6 +10582,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 										{
 											memcpy(local_frame_buffer + current_buffer_offset, local_frame_parts_iterator->frame_part_data, local_frame_parts_iterator->frame_part_data_size);
 											current_buffer_offset += local_frame_parts_iterator->frame_part_data_size;
+
+											frame_arrival_time = local_frame_parts_iterator->arrival_time;
 										}
 
 										delete[]local_frame_parts_iterator->frame_part_data;
@@ -10568,8 +10629,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 								int local_IDC_CHECK_SAVE_PICTURES_state = 0;
 
 								{
-									CSingleLock lock(&GUI_update_critical_section);
-									lock.Lock();
+									//CSingleLock lock(&GUI_update_critical_section);
+									//lock.Lock();
 
 									local_IDC_CHECK_SAVE_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_PICTURES_state;
 								}
@@ -10607,8 +10668,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 								int local_IDC_CHECK_RETRANSLATE_VIDEO_state = 0;
 
 								{
-									CSingleLock lock(&GUI_update_critical_section);
-									lock.Lock();
+									//CSingleLock lock(&GUI_update_critical_section);
+									//lock.Lock();
 
 									local_IDC_CHECK_RETRANSLATE_VIDEO_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_VIDEO_state;
 								}
@@ -10672,7 +10733,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 											//	delete[]parameter_data;
 											//}
 
-											return;
+											goto OnTimer_Exit;
 										}
 										HDC local_HDC = *received_video_dialog->static_image.GetDC();
 
@@ -10683,7 +10744,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 											//	delete[]parameter_data;
 											//}
 
-											return;
+											goto OnTimer_Exit;
 										}
 
 										try
@@ -10697,7 +10758,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 											//	delete[]parameter_data;
 											//}
 
-											return;
+											goto OnTimer_Exit;
 										}
 
 										if (get_command_terminate_application())
@@ -10707,9 +10768,9 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 											//	delete[]parameter_data;
 											//}
 
-											return;
+											goto OnTimer_Exit;
 										}
-										received_video_dialog->SetWindowTextW(CString(L"Видео от ") + source_address_string);
+										received_video_dialog->SetWindowTextW(CString(L"Видео от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
 									}
 								}
 							}
@@ -10740,12 +10801,13 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 								{
 									local_data_has_expired = true;
 
-									delete[]local_frame_parts_iterator->frame_part_data;
+									if (local_frame_parts_iterator->frame_part_data != NULL)
+									{
+										delete[]local_frame_parts_iterator->frame_part_data;
+									}
 
 									local_frame_parts_iterator->frame_part_data = NULL;
 									local_frame_parts_iterator->frame_part_data_size = 0;
-
-									//local_frame_parts_iterator = current_video_frame->frame_parts.erase(local_frame_parts_iterator);
 								}
 							}
 
@@ -10795,7 +10857,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 				//	delete[]parameter_data;
 				//}
 
-				return;
+				goto OnTimer_Exit;
 			}
 			HDC local_HDC = *received_video_dialog->static_image.GetDC();
 
@@ -10806,7 +10868,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 				//	delete[]parameter_data;
 				//}
 
-				return;
+				goto OnTimer_Exit;
 			}
 
 
@@ -10816,7 +10878,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 
 				if (current_received_web_camera_video_frame_stream->frames.size() != 0)
 				{
-					auto &curren_received_web_camera_frame = current_received_web_camera_video_frame_stream->frames.begin();
+					auto &current_received_web_camera_frame = current_received_web_camera_video_frame_stream->frames.begin();
 
 					CComPtr<IStream> frame_stream;
 
@@ -10828,12 +10890,14 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 						frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
 					}
 
-					auto frame_size = curren_received_web_camera_frame->frame_data_size;
+					auto frame_size = current_received_web_camera_frame->frame_data_size;
 
-					if(curren_received_web_camera_frame->frame_data!=NULL)
+					auto frame_arrival_time = current_received_web_camera_frame->arrival_time;
+
+					if(current_received_web_camera_frame->frame_data!=NULL)
 					{
 						ULONG local_bytes_written = 0;
-						frame_stream->Write(curren_received_web_camera_frame->frame_data, frame_size, &local_bytes_written);
+						frame_stream->Write(current_received_web_camera_frame->frame_data, frame_size, &local_bytes_written);
 
 						if (frame_size != local_bytes_written)
 						{
@@ -10862,8 +10926,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 						int local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = 0;
 
 						{
-							CSingleLock lock(&GUI_update_critical_section);
-							lock.Lock();
+							//CSingleLock lock(&GUI_update_critical_section);
+							//lock.Lock();
 
 							local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state;
 						}
@@ -10912,7 +10976,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 							//	delete[]parameter_data;
 							//}
 
-							return;
+							goto OnTimer_Exit;
 						}
 
 						if (get_command_terminate_application())
@@ -10922,16 +10986,16 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 							//	delete[]parameter_data;
 							//}
 
-							return;
+							goto OnTimer_Exit;
 						}
-						received_video_dialog->SetWindowTextW(CString(L"Видео с веб камеры от ") + source_address_string);
+						received_video_dialog->SetWindowTextW(CString(L"Видео с веб камеры от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
 
 						{
 							int local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = 0;
 
 							{
-								CSingleLock lock(&GUI_update_critical_section);
-								lock.Lock();
+								//CSingleLock lock(&GUI_update_critical_section);
+								//lock.Lock();
 
 								local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state;
 							}
@@ -10977,14 +11041,14 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 
 	}
 
-	CDialogEx::OnTimer(nIDEvent);
+	OnTimer_Exit: CDialogEx::OnTimer(nIDEvent);
 }
 
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnClickedCheckEnableChat()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_CHAT_state = button_enable_chat.GetCheck();
 }
@@ -10999,8 +11063,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnChangeEditServer()
 
 	// TODO:  Добавьте код элемента управления
 
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	edit_server.GetWindowTextW(GUI_CONTROLS_STATE_data.IDC_EDIT_SERVER_state);
 }
 
@@ -11014,8 +11078,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnChangeEditText()
 
 	// TODO:  Добавьте код элемента управления
 
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	edit_text.GetWindowTextW(GUI_CONTROLS_STATE_data.IDC_EDIT_TEXT_state);
 }
 
@@ -11029,8 +11093,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnChangeEditXorCode()
 
 	// TODO:  Добавьте код элемента управления
 
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	edit_xor_code.GetWindowTextW(GUI_CONTROLS_STATE_data.IDC_EDIT_XOR_CODE_state);
 }
 
@@ -11044,8 +11108,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnChangeEditSpeed()
 
 	// TODO:  Добавьте код элемента управления
 
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	edit_speed.GetWindowTextW(GUI_CONTROLS_STATE_data.IDC_EDIT_SPEED_state);
 }
 
@@ -11053,8 +11117,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnChangeEditSpeed()
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnSelchangeListChat()
 {
 	// TODO: добавьте свой код обработчика уведомлений
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	{
 		int list_chat_items_index = list_chat.GetCurSel();
 		CString list_chat_current_item;
@@ -11081,8 +11145,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnSelchangeListChat()
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnSelchangeListExternalIp4()
 {
 	// TODO: добавьте свой код обработчика уведомлений
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	{
 		int list_external_ip_4_items_index = list_external_ip_4.GetCurSel();
 		CString list_external_ip_4_current_item;
@@ -11109,8 +11173,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnSelchangeListExternalIp4()
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnSelchangeListNodes()
 {
 	// TODO: добавьте свой код обработчика уведомлений
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 	{
 		int list_nodes_items_index = list_nodes.GetCurSel();
 		CString list_nodes_current_item;
@@ -11184,8 +11248,8 @@ UINT _cdecl upnp_external_ipv4_detection_thread(LPVOID parameter)
 
 				if (ip.length() != 0)
 				{
-					CSingleLock lock(&local_main_dialog->GUI_update_critical_section);
-					lock.Lock();
+					//CSingleLock lock(&local_main_dialog->GUI_update_critical_section);
+					//lock.Lock();
 
 					CString local_external_ip_4(ip.c_str());
 
@@ -11209,8 +11273,8 @@ UINT _cdecl upnp_external_ipv4_detection_thread(LPVOID parameter)
 
 				if (ip.length() != 0)
 				{
-					CSingleLock lock(&local_main_dialog->GUI_update_critical_section);
-					lock.Lock();
+					//CSingleLock lock(&local_main_dialog->GUI_update_critical_section);
+					//lock.Lock();
 
 					CString local_external_ip_4(ip.c_str());
 
@@ -11252,32 +11316,32 @@ UINT _cdecl upnp_external_ipv4_detection_thread(LPVOID parameter)
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSavePictures()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_PICTURES_state = button_enable_save_video.GetCheck();
 }
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSaveWebCameraPictures()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = button_enable_save_web_camera_video.GetCheck();
 }
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckSaveMicrophoneSound()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_MICROPHONE_SOUND_state = button_enable_save_microphone_audio.GetCheck();
 }
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateVideo()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_VIDEO_state = button_retranslate_video.GetCheck();
 
@@ -11313,8 +11377,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateVideo()
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateWebCamera()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = button_retranslate_web_camera.GetCheck();
 
@@ -11350,8 +11414,8 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateWebCame
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateMicrophone()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_MICROPHONE_state = button_retranslate_microphone.GetCheck();
 	if (GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_MICROPHONE_state != 0)
@@ -15883,8 +15947,8 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableChatServiceInformation()
 {
-	CSingleLock lock(&GUI_update_critical_section);
-	lock.Lock();
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION_state = button_enable_showing_service_information_in_chat.GetCheck();
 }
