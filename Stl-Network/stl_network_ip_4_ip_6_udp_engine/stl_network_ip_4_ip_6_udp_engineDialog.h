@@ -8,6 +8,8 @@
 #include "ReceivedVideoDialog.h"
 #include "WebCameraPictureDialog.h"
 
+#include "galaxy_namespace.h"
+
 struct THREADS_INFORMATION
 {
 //	CWinThread *WinThread;
@@ -86,6 +88,7 @@ struct GUI_CONTROLS_STATE
 	int IDC_CHECK_RETRANSLATE_WEB_CAMERA_state;					//DDX_Control(pDX, IDC_CHECK_RETRANSLATE_WEB_CAMERA, button_retranslate_web_camera);
 	int IDC_CHECK_RETRANSLATE_MICROPHONE_state;					//DDX_Control(pDX, IDC_CHECK_RETRANSLATE_MICROPHONE, button_retranslate_microphone);
 	int IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION_state;		//DDX_Control(pDX, IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION, button_enable_showing_service_information_in_chat);
+	int IDC_CHECK_ENABLE_LOG_state;								//DDX_Control(pDX, IDC_CHECK_ENABLE_LOG, button_enable_log);
 };
 
 // диалоговое окно Cstl_network_ip_4_ip_6_udp_engineDialog
@@ -365,6 +368,7 @@ public:
 	static const UINT_PTR Cstl_network_ip_4_ip_6_udp_engineDialog_draw_video_timer_nIDEvent = 10001;
 	static const UINT_PTR Cstl_network_ip_4_ip_6_udp_engineDialog_draw_web_camera_timer_nIDEvent = 10002;
 	static const UINT_PTR Cstl_network_ip_4_ip_6_udp_engineDialog_play_sound_timer_nIDEvent = 10003;
+	static const UINT_PTR Cstl_network_ip_4_ip_6_udp_engineDialog_Quality_Control_timer_nIDEvent = 10004;
 
 	afx_msg void OnClickedCheckEnableChat();
 
@@ -402,5 +406,13 @@ public:
 	}
 	CButton button_enable_showing_service_information_in_chat;
 	afx_msg void OnBnClickedCheckEnableChatServiceInformation();
+
+
+	galaxy::CLogFile LogFile;
+	CCriticalSection datagram_act_on_request_connection_thread_log_data_CriticalSection;
+	galaxy::CLogFile LogFile2;
+	CCriticalSection datagram_act_on_request_connection_thread_log_data_2_CriticalSection;
+	afx_msg void OnBnClickedCheckEnableLog();
+	CButton button_enable_log;
 };
 

@@ -41,14 +41,18 @@ boost::thread_group tg;
 boost::thread_group tg_redirect;
 boost::thread_group tg_redirect_delete;
 
-const CString command_register(L"/register");
-const CString command_execute_application(L"/execute_application");
-const CString command_video(L"/video");
-const CString command_video_end(L"/video_end");
-const CString command_audio(L"/audio");
-const CString command_audio_end(L"/audio_end");
-const CString command_web_camera_video(L"/web_camera_video");
-const CString command_web_camera_video_end(L"/web_camera_video_end");
+const CString LogFileNameBase(L"stl_network_ip_4_ip_6_udp_engine");
+const CString LogFileNameExtension(L".log");
+
+const size_t command_name_length = 30;
+const CString command_register				(L"/register                     ");
+const CString command_execute_application	(L"/execute_application          ");
+const CString command_video					(L"/video                        ");
+const CString command_video_end				(L"/video_end                    ");
+const CString command_audio					(L"/audio                        ");
+const CString command_audio_end				(L"/audio_end                    ");
+const CString command_web_camera_video		(L"/web_camera_video             ");
+const CString command_web_camera_video_end	(L"/web_camera_video_end         ");
 
 
 #define use_istream_DEFINITION
@@ -68,10 +72,16 @@ const double CONST_RECOMMENDED_SPEED = CONST_30Mbps_SPEED;
 
 const DWORD CONST_RECOMMENDED_GUI_UPDATE_TIME = 2000;
 const DWORD CONST_ONE_SECOND = 1000;
-const DWORD CONST_RECOMMENDED_FPS = 100;
+const DWORD CONST_RECOMMENDED_FPS = 20;
+const DWORD CONST_RECOMMENDED_WEB_CAMERA_FPS = 50;
 const DWORD CONST_RECOMMENDED_FRAME_TIME = CONST_ONE_SECOND / CONST_RECOMMENDED_FPS;
-const DWORD CONST_RECOMMENDED_WEB_CAMERA_FRAME_TIME = 1;
+const DWORD CONST_RECOMMENDED_WEB_CAMERA_FRAME_TIME = CONST_ONE_SECOND / CONST_RECOMMENDED_WEB_CAMERA_FPS;
 const DWORD CONST_RECOMMENDED_SOUND_FRAME_TIME = 1;
+const DWORD CONST_RECOMMENDED_QUALITY_CONTROL_TIME = CONST_ONE_SECOND;
+
+
+const size_t MAXIMUM_act_on_request_ip_4_threads = 100;
+const size_t MAXIMUM_act_on_request_ip_6_threads = 100;
 
 
 const double CONST_VIDEO_SIZE = ((1920 * 1080)*(50.0 / 100.0));
@@ -174,7 +184,8 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 const BYTE CONST_XOR_KEY = 42;
 #define service_signature_definition L"stl_network_ip_4_ip_6_udp_engine"
-#define service_signature_definition_length wcslen(service_signature_definition)*sizeof(wchar_t)
+size_t service_signature_definition_length = wcslen(service_signature_definition);
+size_t service_signature_definition_size = service_signature_definition_length * sizeof(wchar_t);
 char service_signature[CONST_MESSAGE_LENGTH];
 
 #define localhost_definition L"localhost"
@@ -393,6 +404,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK_RETRANSLATE_WEB_CAMERA, button_retranslate_web_camera);
 	DDX_Control(pDX, IDC_CHECK_RETRANSLATE_MICROPHONE, button_retranslate_microphone);
 	DDX_Control(pDX, IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION, button_enable_showing_service_information_in_chat);
+	DDX_Control(pDX, IDC_CHECK_ENABLE_LOG, button_enable_log);
 }
 
 BEGIN_MESSAGE_MAP(Cstl_network_ip_4_ip_6_udp_engineDialog, CDialogEx)
@@ -428,6 +440,7 @@ BEGIN_MESSAGE_MAP(Cstl_network_ip_4_ip_6_udp_engineDialog, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_RETRANSLATE_WEB_CAMERA, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateWebCamera)
 	ON_BN_CLICKED(IDC_CHECK_RETRANSLATE_MICROPHONE, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckRetranslateMicrophone)
 	ON_BN_CLICKED(IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableChatServiceInformation)
+	ON_BN_CLICKED(IDC_CHECK_ENABLE_LOG, &Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableLog)
 END_MESSAGE_MAP()
 
 
@@ -466,9 +479,9 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 
 	ZeroMemory(service_signature, CONST_MESSAGE_LENGTH);
 
-	memcpy(service_signature, service_signature_definition, service_signature_definition_length);
+	memcpy(service_signature, service_signature_definition, service_signature_definition_size);
 
-	encrypt::encrypt_xor(service_signature, service_signature_definition_length, CONST_XOR_KEY);
+	encrypt::encrypt_xor(service_signature, service_signature_definition_size, CONST_XOR_KEY);
 
 
 
@@ -483,7 +496,7 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wcscpy_s(local_system_error_message, local_error_message_size, CString(L"Ошибка при запуске подсистемы сети."));
 
@@ -503,6 +516,8 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 	button_enable_save_video.SetCheck(0);
 
 	button_enable_showing_service_information_in_chat.SetCheck(0);
+
+	button_enable_log.SetCheck(0);
 
 	CString local_edit_speed_string;
 	local_edit_speed_string.Format(L"%0.4f", CONST_RECOMMENDED_SPEED);
@@ -614,6 +629,7 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 		GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = button_retranslate_web_camera.GetCheck();	//DDX_Control(pDX, IDC_CHECK_RETRANSLATE_WEB_CAMERA, button_retranslate_web_camera);
 		GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_MICROPHONE_state = button_retranslate_microphone.GetCheck();	//DDX_Control(pDX, IDC_CHECK_RETRANSLATE_MICROPHONE, button_retranslate_microphone);
 		GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION_state = button_enable_showing_service_information_in_chat.GetCheck();		//DDX_Control(pDX, IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION, button_enable_showing_service_information_in_chat);
+		GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state = button_enable_log.GetCheck();							//DDX_Control(pDX, IDC_CHECK_ENABLE_LOG, button_enable_log);
 
 	}
 
@@ -623,9 +639,11 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 
 	SetTimer(Cstl_network_ip_4_ip_6_udp_engineDialog_draw_video_timer_nIDEvent, CONST_RECOMMENDED_FRAME_TIME, NULL);
 
-	SetTimer(Cstl_network_ip_4_ip_6_udp_engineDialog_draw_web_camera_timer_nIDEvent, CONST_RECOMMENDED_FRAME_TIME, NULL);
+	SetTimer(Cstl_network_ip_4_ip_6_udp_engineDialog_draw_web_camera_timer_nIDEvent, CONST_RECOMMENDED_WEB_CAMERA_FRAME_TIME, NULL);
 
 	SetTimer(Cstl_network_ip_4_ip_6_udp_engineDialog_play_sound_timer_nIDEvent, CONST_RECOMMENDED_SOUND_FRAME_TIME, NULL);
+
+	SetTimer(Cstl_network_ip_4_ip_6_udp_engineDialog_Quality_Control_timer_nIDEvent, CONST_RECOMMENDED_QUALITY_CONTROL_TIME, NULL);
 
 
 	redirected_port_number = 0;
@@ -648,6 +666,33 @@ BOOL Cstl_network_ip_4_ip_6_udp_engineDialog::OnInitDialog()
 		threads_list.push_back(local_thread_information);
 	}
 	/*//*/
+
+	CString LogFileName;
+
+	CString LogFileName2;
+
+	const DWORD current_directory_buffer_length = 10000;
+	WCHAR current_directory_buffer[current_directory_buffer_length];
+	ZeroMemory(&current_directory_buffer, current_directory_buffer_length * sizeof(WCHAR));
+	GetCurrentDirectoryW(current_directory_buffer_length, current_directory_buffer);
+	
+	LogFileName += CString(current_directory_buffer);
+	LogFileName += CString(L"\\");
+	LogFileName += CTime::GetCurrentTime().Format(CString(L"%Y-%m-%d %H-%M-%S"));
+	LogFileName += CString(L" ");
+	LogFileName += LogFileNameBase;
+
+	LogFileName2 = LogFileName;
+
+	LogFileName += LogFileNameExtension;
+
+	LogFile.Create(LogFileName);
+
+	LogFileName2 += CString(L"____2");
+
+	LogFileName2 += LogFileNameExtension;
+
+	LogFile2.Create(LogFileName2);
 
 
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
@@ -819,7 +864,7 @@ UINT __cdecl datagram_listen_connection_thread_ip_4(LPVOID parameter)
 
 		wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -859,7 +904,7 @@ looking_udp_port:
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -931,7 +976,7 @@ looking_udp_port:
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -1292,35 +1337,85 @@ looking_udp_port:
 		{
 			local_bytes_received = local_blocking_socket.ReceiveDatagram(local_message_to_receive, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME, (LPSOCKADDR)&local_socket_address_peer, CONST_WAIT_TIME_LISTEN);
 
+			if (local_main_dialog->get_command_threads_stop())
+			{
+				break;
+			}
+
 			if (local_bytes_received > 0)
 			{
 				{
+					CString local_port_string;
+					local_port_string.Format(CString(L"%d"), int(local_socket_address_peer.Port()));
+					CString local_chat;
+					local_chat = CString(L"Получены данные от партнёра ") + CString(L"с адреса ") + local_socket_address_peer.DottedDecimal() + CString(L" с порта ") + local_port_string;
+					list_chat_AddString(local_main_dialog, local_chat);
+					local_chat = CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+					list_chat_AddString(local_main_dialog, local_chat);
+				}
+
+				{
 					local_receive_counter++;
 
-					void *local_act_on_request_thread_parameters_structure = new thread_act_on_request_parameters_structure_type;
-
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_main_dialog = ((thread_listen_parameters_structure_type*)local_listen_thread_parameters_structure)->parameter_main_dialog;
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer = new char[local_bytes_received + sizeof(wchar_t)];
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer_size = local_bytes_received;
-
-					memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer, local_message_to_receive, local_bytes_received);
-					wchar_t zero_word = L'\0';
-					memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer + local_bytes_received, &zero_word, sizeof(wchar_t));
-
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_4 = new network::ip_4::CSockAddr_ip_4(local_socket_address_peer);
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_6 = NULL;
-
-					CWinThread *local_thread = AfxBeginThread(datagram_act_on_request_connection_thread_ip_4, local_act_on_request_thread_parameters_structure);
-
-					THREADS_INFORMATION local_thread_information;
-					local_thread_information.thread_name = CString(L"datagram_act_on_request_connection_thread_ip_4");
-					local_thread_information.WinThread = local_thread->m_hThread;
-
+					size_t act_on_request_ip_4_threads = 0;
 					CSingleLock local_lock(&local_main_dialog->threads_list_critical_section);
 					local_lock.Lock();
+					for (auto threads_list_iterator = local_main_dialog->threads_list.begin(); threads_list_iterator!= local_main_dialog->threads_list.end();threads_list_iterator++)
+					{
+						if (threads_list_iterator->thread_name==CString(L"datagram_act_on_request_connection_thread_ip_4"))
+						{
+							act_on_request_ip_4_threads++;
+						}
+					}
+					local_lock.Unlock();
+					{
+						CSingleLock local_lock(&local_main_dialog->datagram_act_on_request_connection_thread_log_data_2_CriticalSection);
+						local_lock.Lock();
+						CString StringToLog;
+						StringToLog.Format(CString(L"Запущено %d потоков обработки пришедших по IPv4 данных"), act_on_request_ip_4_threads);
+						local_main_dialog->LogFile2.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					}
+					if (act_on_request_ip_4_threads < MAXIMUM_act_on_request_ip_4_threads)
+					{
 
-					local_main_dialog->threads_list.push_back(local_thread_information);
+						void *local_act_on_request_thread_parameters_structure = new thread_act_on_request_parameters_structure_type;
 
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_main_dialog = ((thread_listen_parameters_structure_type*)local_listen_thread_parameters_structure)->parameter_main_dialog;
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer = new char[local_bytes_received + sizeof(wchar_t)];
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer_size = local_bytes_received;
+
+						memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer, local_message_to_receive, local_bytes_received);
+						wchar_t zero_word = L'\0';
+						memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer + local_bytes_received, &zero_word, sizeof(wchar_t));
+
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_4 = new network::ip_4::CSockAddr_ip_4(local_socket_address_peer);
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_6 = NULL;
+
+						CWinThread *local_thread = AfxBeginThread(datagram_act_on_request_connection_thread_ip_4, local_act_on_request_thread_parameters_structure);
+
+						THREADS_INFORMATION local_thread_information;
+						local_thread_information.thread_name = CString(L"datagram_act_on_request_connection_thread_ip_4");
+						local_thread_information.WinThread = local_thread->m_hThread;
+
+						CSingleLock local_lock(&local_main_dialog->threads_list_critical_section);
+						local_lock.Lock();
+
+						local_main_dialog->threads_list.push_back(local_thread_information);
+					}
+					else
+					{
+						CString local_port_string;
+						local_port_string.Format(CString(L"%d"), int(local_socket_address_peer.Port()));
+						CString local_chat;
+						local_chat = CString(L"Отброшены данные  партнёра");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L"из за превышения максимального количества данных в очереди обработки");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L"с адреса ") + local_socket_address_peer.DottedDecimal() + CString(L" с порта ") + local_port_string;
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+					}
 					//datagram_act_on_request_connection_thread_ip_4(local_act_on_request_thread_parameters_structure);
 				}
 			}
@@ -1333,7 +1428,7 @@ looking_udp_port:
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -1401,7 +1496,7 @@ UINT __cdecl datagram_listen_connection_thread_ip_6(LPVOID parameter)
 
 		wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -1436,7 +1531,7 @@ UINT __cdecl datagram_listen_connection_thread_ip_6(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -1484,7 +1579,7 @@ UINT __cdecl datagram_listen_connection_thread_ip_6(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -1520,35 +1615,84 @@ UINT __cdecl datagram_listen_connection_thread_ip_6(LPVOID parameter)
 		{
 			local_bytes_received = local_blocking_socket.ReceiveDatagram(local_message_to_receive, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME, (LPSOCKADDR_IN6)&local_socket_address_peer, CONST_WAIT_TIME_LISTEN);
 
+			if (local_main_dialog->get_command_threads_stop())
+			{
+				break;
+			}
+
 			if (local_bytes_received > 0)
 			{
 				{
+					CString local_port_string;
+					local_port_string.Format(CString(L"%d"), int(local_socket_address_peer.Port()));
+					CString local_chat;
+					local_chat = CString(L"Получены данные от партнёра ") + CString(L"с адреса ") + local_socket_address_peer.DottedDecimal() + CString(L" с порта ") + local_port_string;
+					list_chat_AddString(local_main_dialog, local_chat);
+					local_chat = CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+					list_chat_AddString(local_main_dialog, local_chat);
+				}
+				{
 					local_receive_counter++;
 
-					void *local_act_on_request_thread_parameters_structure = new thread_act_on_request_parameters_structure_type;
-
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_main_dialog = ((thread_listen_parameters_structure_type*)local_listen_thread_parameters_structure)->parameter_main_dialog;
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer = new char[local_bytes_received + sizeof(wchar_t)];
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer_size = local_bytes_received;
-
-					memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer, local_message_to_receive, local_bytes_received);
-					wchar_t zero_word = L'\0';
-					memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer + local_bytes_received, &zero_word, sizeof(wchar_t));
-
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_4 = NULL;
-					((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_6 = new network::ip_6::CSockAddr_ip_6(local_socket_address_peer);;
-
-					CWinThread *local_thread = AfxBeginThread(datagram_act_on_request_connection_thread_ip_6, local_act_on_request_thread_parameters_structure);
-
-					THREADS_INFORMATION local_thread_information;
-					local_thread_information.thread_name = CString(L"datagram_act_on_request_connection_thread_ip_6");
-					local_thread_information.WinThread = local_thread->m_hThread;
-
+					size_t act_on_request_ip_6_threads = 0;
 					CSingleLock local_lock(&local_main_dialog->threads_list_critical_section);
 					local_lock.Lock();
+					for (auto threads_list_iterator = local_main_dialog->threads_list.begin(); threads_list_iterator != local_main_dialog->threads_list.end(); threads_list_iterator++)
+					{
+						if (threads_list_iterator->thread_name == CString(L"datagram_act_on_request_connection_thread_ip_6"))
+						{
+							act_on_request_ip_6_threads++;
+						}
+					}
+					local_lock.Unlock();
+					{
+						CSingleLock local_lock(&local_main_dialog->datagram_act_on_request_connection_thread_log_data_2_CriticalSection);
+						local_lock.Lock();
+						CString StringToLog;
+						StringToLog.Format(CString(L"Запущено %d потоков обработки пришедших по IPv6 данных"), act_on_request_ip_6_threads);
+						local_main_dialog->LogFile2.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					}
+					if (act_on_request_ip_6_threads < MAXIMUM_act_on_request_ip_6_threads)
+					{
 
-					local_main_dialog->threads_list.push_back(local_thread_information);
+						void *local_act_on_request_thread_parameters_structure = new thread_act_on_request_parameters_structure_type;
 
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_main_dialog = ((thread_listen_parameters_structure_type*)local_listen_thread_parameters_structure)->parameter_main_dialog;
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer = new char[local_bytes_received + sizeof(wchar_t)];
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer_size = local_bytes_received;
+
+						memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer, local_message_to_receive, local_bytes_received);
+						wchar_t zero_word = L'\0';
+						memcpy(((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_buffer + local_bytes_received, &zero_word, sizeof(wchar_t));
+
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_4 = NULL;
+						((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_6 = new network::ip_6::CSockAddr_ip_6(local_socket_address_peer);;
+
+						CWinThread *local_thread = AfxBeginThread(datagram_act_on_request_connection_thread_ip_6, local_act_on_request_thread_parameters_structure);
+
+						THREADS_INFORMATION local_thread_information;
+						local_thread_information.thread_name = CString(L"datagram_act_on_request_connection_thread_ip_6");
+						local_thread_information.WinThread = local_thread->m_hThread;
+
+						CSingleLock local_lock(&local_main_dialog->threads_list_critical_section);
+						local_lock.Lock();
+
+						local_main_dialog->threads_list.push_back(local_thread_information);
+					}
+					else
+					{
+						CString local_port_string;
+						local_port_string.Format(CString(L"%d"), int(local_socket_address_peer.Port()));
+						CString local_chat;
+						local_chat = CString(L"Отброшены данные  партнёра");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L"из за превышения максимального количества данных в очереди обработки");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L"с адреса ") + local_socket_address_peer.DottedDecimal() + CString(L" с порта ") + local_port_string;
+						list_chat_AddString(local_main_dialog, local_chat, false);
+						local_chat = CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
+						list_chat_AddString(local_main_dialog, local_chat, false);
+					}
 					//datagram_act_on_request_connection_thread_ip_6(local_act_on_request_thread_parameters_structure);
 				}
 			}
@@ -1561,7 +1705,7 @@ UINT __cdecl datagram_listen_connection_thread_ip_6(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -1967,7 +2111,7 @@ UINT __cdecl datagram_send_connection_thread_ip_4(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -1992,7 +2136,7 @@ UINT __cdecl datagram_send_connection_thread_ip_4(LPVOID parameter)
 				const int local_system_error_message_size = local_error_message_size - 1000;
 				wchar_t local_system_error_message[local_system_error_message_size];
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -2016,11 +2160,11 @@ UINT __cdecl datagram_send_connection_thread_ip_4(LPVOID parameter)
 
 			char send_buffer[CONST_MESSAGE_LENGTH];
 
-			int send_buffer_data_length = service_signature_definition_length;
+			int send_buffer_data_length = service_signature_definition_size;
 
 			ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-			memcpy(send_buffer, service_signature, service_signature_definition_length);
+			memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 			CString send_data_string;
 
@@ -2060,7 +2204,7 @@ UINT __cdecl datagram_send_connection_thread_ip_4(LPVOID parameter)
 
 			char xor_code = _wtoi(xor_code_string);
 
-			encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+			encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 			try
 			{
@@ -2076,7 +2220,7 @@ UINT __cdecl datagram_send_connection_thread_ip_4(LPVOID parameter)
 				const int local_system_error_message_size = local_error_message_size;
 				wchar_t local_system_error_message[local_system_error_message_size];
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -2268,7 +2412,7 @@ UINT __cdecl datagram_send_connection_thread_ip_6(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -2293,7 +2437,7 @@ UINT __cdecl datagram_send_connection_thread_ip_6(LPVOID parameter)
 				const int local_system_error_message_size = local_error_message_size - 1000;
 				wchar_t local_system_error_message[local_system_error_message_size];
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -2317,11 +2461,11 @@ UINT __cdecl datagram_send_connection_thread_ip_6(LPVOID parameter)
 
 			char send_buffer[CONST_MESSAGE_LENGTH];
 
-			int send_buffer_data_length = service_signature_definition_length;
+			int send_buffer_data_length = service_signature_definition_size;
 
 			ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-			memcpy(send_buffer, service_signature, service_signature_definition_length);
+			memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 			CString send_data_string;
 
@@ -2361,7 +2505,7 @@ UINT __cdecl datagram_send_connection_thread_ip_6(LPVOID parameter)
 
 			char xor_code = _wtoi(xor_code_string);
 
-			encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+			encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 			try
 			{
@@ -2377,7 +2521,7 @@ UINT __cdecl datagram_send_connection_thread_ip_6(LPVOID parameter)
 				const int local_system_error_message_size = local_error_message_size;
 				wchar_t local_system_error_message[local_system_error_message_size];
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -2653,7 +2797,10 @@ UINT __cdecl stop_waiting_thread(LPVOID parameter)
 							local_frame_parts_iterator++
 							)
 						{
-							delete[]local_frame_parts_iterator->frame_part_data;
+							if (local_frame_parts_iterator->frame_part_data != NULL)
+							{
+								delete[]local_frame_parts_iterator->frame_part_data;
+							}
 
 							local_frame_parts_iterator->frame_part_data = NULL;
 							local_frame_parts_iterator->frame_part_data_size = 0;
@@ -2911,12 +3058,99 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 		return 0;
 	}
 
+	CSingleLock local_lock_datagram_act_on_request_connection_thread_log_data(&local_main_dialog->datagram_act_on_request_connection_thread_log_data_CriticalSection);
+	local_lock_datagram_act_on_request_connection_thread_log_data.Lock();
+
 	for (;;)
 	{
+		{
+			CString StringToLog;
+
+			StringToLog = CString(L"");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+			StringToLog.Format(CString(L"Получен пакет длинной %d байта"),parameter_buffer_size);
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			StringToLog = CTime::GetCurrentTime().Format(CString(L"В %H:%M:%S %A, %B %d, %Y"));
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			StringToLog = CString(L"==========");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			if (size_t(parameter_buffer_size) >= service_signature_definition_size)
+			{
+				{
+					const size_t local_buffer_size = size_t(service_signature_definition_size);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Подпись длиной %d байт"), local_buffer_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get()), UINT(local_buffer_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+				
+				CString xor_code_string;
+
+				{
+					xor_code_string = local_main_dialog->GUI_CONTROLS_STATE_data.IDC_EDIT_XOR_CODE_state;
+				}
+
+				char xor_code = _wtoi(xor_code_string);
+
+				if (size_t(parameter_buffer_size) >= service_signature_definition_size + command_name_length*sizeof(WCHAR))
+				{
+					const size_t local_buffer_size = service_signature_definition_size + command_name_length*sizeof(WCHAR);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Первые %d байт"), local_buffer_size - service_signature_definition_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					encrypt::encrypt_xor(local_buffer.get() + service_signature_definition_size, local_buffer_size - service_signature_definition_size, xor_code);
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get() + service_signature_definition_size), UINT(local_buffer_size - service_signature_definition_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+				else
+				{
+					const size_t local_buffer_size = size_t(parameter_buffer_size);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Первые %d байт"), local_buffer_size - service_signature_definition_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					encrypt::encrypt_xor(local_buffer.get() + service_signature_definition_size, local_buffer_size - service_signature_definition_size, xor_code);
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get() + service_signature_definition_size), UINT(local_buffer_size - service_signature_definition_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+				StringToLog = CString(L"");
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
+			StringToLog = CString(L"==========");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);			
+		}
 		//MessageBoxA(NULL,parameter_buffer,"Incomming connection",MB_ICONINFORMATION);
 
-		if (memcmp(service_signature, parameter_buffer, service_signature_definition_length) == 0)
+		if (memcmp(service_signature, parameter_buffer, service_signature_definition_size) == 0)
 		{
+			{
+				CString StringToLog = CString(L"Подпись распознана");
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
 			//galaxy::MessageBox(NULL,L"Data from client received",L"Incomming connection");
 
 			if (((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_4 == NULL)
@@ -2930,7 +3164,14 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 
 			local_port_string.Format(L"%d", UINT(parameter_socket_address_peer_ip_4.Port()));
 
-			if (parameter_buffer_size == int(service_signature_definition_length))
+			{
+				CString StringToLog = CString(L"Данные отправлены с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string;
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
+
+			local_lock_datagram_act_on_request_connection_thread_log_data.Unlock();
+
+			if (parameter_buffer_size == int(service_signature_definition_size))
 			{
 				CString local_chat;				
 				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
@@ -2958,7 +3199,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				if (parameter_buffer_size > int(service_signature_definition_length))
+				if (parameter_buffer_size > int(service_signature_definition_size))
 				{
 					//CString local_chat;
 					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_4.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
@@ -2971,7 +3212,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						//list_chat_AddString(local_main_dialog,local_chat);
 					}
 
-					CString local_message((wchar_t*)(encrypt::encrypt_xor(parameter_buffer + service_signature_definition_length, parameter_buffer_size - service_signature_definition_length, xor_code)));
+					CString local_message((wchar_t*)(encrypt::encrypt_xor(parameter_buffer + service_signature_definition_size, parameter_buffer_size - service_signature_definition_size, xor_code)));
 
 					if (local_message[0] != L'/')
 					{
@@ -2998,12 +3239,18 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 					}
 					else
 					{
+						if (local_message.GetLength() < command_name_length)
+						{
+							// все команды имеют длину command_name_length символов в кодировке UNICODE-16
+							break;
+						}
+
 						CString local_command_received;
 						int local_buffer_parameter_offset = 0;
 
 						for (int local_buffer_counter = 0; local_buffer_counter < local_message.GetLength(); local_buffer_counter++)
 						{
-							if (local_message[local_buffer_counter] == L' ')
+							if (size_t(local_buffer_counter)>=command_name_length)
 							{
 								local_buffer_parameter_offset = local_buffer_counter + 1;
 								break;
@@ -3014,6 +3261,9 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 								local_command_received += local_message[local_buffer_counter];
 							}
 						}
+
+						size_t local_command_received_length = size_t(local_command_received.GetLength());
+						assert(command_name_length == local_command_received_length);
 
 						CString local_command_parameter_received;
 
@@ -3031,7 +3281,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 
 						for (int local_buffer_counter = local_buffer_parameter_offset; local_buffer_counter < local_message.GetLength(); local_buffer_counter++)
 						{
-							if (local_message[local_buffer_counter] == L' ')
+							if (local_message[local_buffer_counter] == L';')
 							{
 								break;
 							}
@@ -3164,13 +3414,109 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 									break;
 								}
 								{
-									ShellExecute(NULL, CString("open"), local_command_parameter_received, NULL, NULL, SW_SHOWNORMAL);
+									CString local_command;
+									CString local_command_parameters;
+									CString local_command_directory;
+									int local_command_parameters_offset = 0;
+									for (int local_buffer_counter = 0; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+									{
+										if (local_command_parameter_received[local_buffer_counter] == L'\"')
+										{
+											local_command_parameters_offset++;
+											local_command += local_command_parameter_received[local_buffer_counter];
+											for (local_buffer_counter++; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+											{
+												if (local_command_parameter_received[local_buffer_counter] == L'\"')
+												{
+													local_command_parameters_offset++;
+													local_command += local_command_parameter_received[local_buffer_counter];
+													break;
+												}
+												else
+												{
+													local_command_parameters_offset++;
+													local_command += local_command_parameter_received[local_buffer_counter];
+												}
+											}
+											continue;
+										}
+										if (local_command_parameter_received[local_buffer_counter] == L' ')
+										{
+											local_command_parameters_offset++;
+											break;
+										}
+										else
+										{
+											local_command_parameters_offset++;
+											local_command += local_command_parameter_received[local_buffer_counter];
+										}
+									}
+									for (int local_buffer_counter = local_command_parameters_offset; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+									{
+										if (local_command_parameter_received[local_buffer_counter] == L';')
+										{
+											break;
+										}
+										else
+										{
+											local_command_parameters += local_command_parameter_received[local_buffer_counter];
+										}
+									}
+
+									CString local_command_temp = local_command;
+									int local_command_buffer_counter = local_command_temp.GetLength() - 1;
+									for (; local_command_buffer_counter >= 0; local_command_buffer_counter--)
+									{
+										if (local_command_temp[local_command_buffer_counter] == L'\\')
+										{
+											break;
+										}
+									}
+									for (int local_buffer_counter = 0; local_buffer_counter <= local_command_buffer_counter; local_buffer_counter++)
+									{
+										local_command_directory += local_command_temp[local_buffer_counter];
+									}
+									if (local_command_directory.GetLength() > 0)
+									{
+										if (local_command_directory[0] == L'\"')
+										{
+											local_command_directory = local_command_directory.Right(local_command_directory.GetLength() - 1);
+										}
+										if (local_command_directory.GetLength() > 0)
+										{
+											if (local_command_directory[local_command_directory.GetLength() - 1] == L'\"')
+											{
+												local_command_directory = local_command_directory.Left(local_command_directory.GetLength() - 1);
+											}
+										}
+									}
+									local_command = CString();
+									for (int local_buffer_counter = local_command_buffer_counter + 1; local_buffer_counter < local_command_temp.GetLength(); local_buffer_counter++)
+									{
+										local_command += local_command_temp[local_buffer_counter];
+									}
+									if (local_command.GetLength() > 0)
+									{
+										if (local_command[0] == L'\"')
+										{
+											local_command = local_command.Right(local_command.GetLength() - 1);
+										}
+										if (local_command.GetLength() > 0)
+										{
+											if (local_command[local_command.GetLength() - 1] == L'\"')
+											{
+												local_command = local_command.Left(local_command.GetLength() - 1);
+											}
+										}
+									}
+
+									ShellExecute(NULL, CString("open"), local_command, local_command_parameters, local_command_directory, SW_SHOWNORMAL);
 								}
 							}
 						}
 						if (local_command_received == command_video)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3210,7 +3556,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						}
 						if (local_command_received == command_video_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3250,8 +3596,9 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						}
 						if (local_command_received == command_web_camera_video)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
+							assert(data_buffer_length);
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
@@ -3290,8 +3637,9 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						}
 						if (local_command_received == command_web_camera_video_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
+							assert(data_buffer_length);
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
 
@@ -3330,7 +3678,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						}
 						if (local_command_received == command_audio)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3370,7 +3718,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_4(LPVOID parameter)
 						}
 						if (local_command_received == command_audio_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3462,12 +3810,99 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 		return 0;
 	}
 
+	CSingleLock local_lock_datagram_act_on_request_connection_thread_log_data(&local_main_dialog->datagram_act_on_request_connection_thread_log_data_CriticalSection);
+	local_lock_datagram_act_on_request_connection_thread_log_data.Lock();
+
 	for (;;)
 	{
+		{
+			CString StringToLog;
+
+			StringToLog = CString(L"");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+			StringToLog.Format(CString(L"Получен пакет длинной %d байта"), parameter_buffer_size);
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			StringToLog = CTime::GetCurrentTime().Format(CString(L"В %H:%M:%S %A, %B %d, %Y"));
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			StringToLog = CString(L"==========");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			if (size_t(parameter_buffer_size) >= service_signature_definition_size)
+			{
+				{
+					const size_t local_buffer_size = size_t(service_signature_definition_size);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Подпись длиной %d байт"), local_buffer_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get()), UINT(local_buffer_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+
+				CString xor_code_string;
+
+				{
+					xor_code_string = local_main_dialog->GUI_CONTROLS_STATE_data.IDC_EDIT_XOR_CODE_state;
+				}
+
+				char xor_code = _wtoi(xor_code_string);
+
+				if (size_t(parameter_buffer_size) >= service_signature_definition_size + command_name_length * sizeof(WCHAR))
+				{
+					const size_t local_buffer_size = service_signature_definition_size + command_name_length * sizeof(WCHAR);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Первые %d байт"), local_buffer_size - service_signature_definition_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					encrypt::encrypt_xor(local_buffer.get() + service_signature_definition_size, local_buffer_size - service_signature_definition_size, xor_code);
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get() + service_signature_definition_size), UINT(local_buffer_size - service_signature_definition_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+				else
+				{
+					const size_t local_buffer_size = size_t(parameter_buffer_size);
+					std::unique_ptr<char> local_buffer(new char[local_buffer_size]);
+					ZeroMemory(local_buffer.get(), local_buffer_size);
+					memcpy(local_buffer.get(), parameter_buffer, local_buffer_size);
+
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog.Format(CString(L"Первые %d байт"), local_buffer_size - service_signature_definition_size);
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+					StringToLog = CString(L"==========");
+					local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+
+					encrypt::encrypt_xor(local_buffer.get() + service_signature_definition_size, local_buffer_size - service_signature_definition_size, xor_code);
+					local_main_dialog->LogFile.Write((BYTE *)(local_buffer.get() + service_signature_definition_size), UINT(local_buffer_size - service_signature_definition_size), local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+				}
+				StringToLog = CString(L"");
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
+			StringToLog = CString(L"==========");
+			local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+		}
 		//MessageBoxA(NULL,parameter_buffer,"Incomming connection",MB_ICONINFORMATION);
 
-		if (memcmp(service_signature, parameter_buffer, service_signature_definition_length) == 0)
+		if (memcmp(service_signature, parameter_buffer, service_signature_definition_size) == 0)
 		{
+			{
+				CString StringToLog = CString(L"Подпись распознана");
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
 			//galaxy::MessageBox(NULL,L"Data from client received",L"Incomming connection");
 
 			if (((thread_act_on_request_parameters_structure_type*)local_act_on_request_thread_parameters_structure)->parameter_socket_address_peer_ip_6 == NULL)
@@ -3481,7 +3916,14 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 
 			local_port_string.Format(L"%d", UINT(parameter_socket_address_peer_ip_6.Port()));
 
-			if (parameter_buffer_size == int(service_signature_definition_length))
+			{
+				CString StringToLog = CString(L"Данные отправлены с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string;
+				local_main_dialog->LogFile.Write(StringToLog, local_main_dialog->GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state);
+			}
+
+			local_lock_datagram_act_on_request_connection_thread_log_data.Unlock();
+
+			if (parameter_buffer_size == int(service_signature_definition_size))
 			{
 				CString local_chat;
 				local_chat = CString(L"Партнёр подключился ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
@@ -3508,7 +3950,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				if (parameter_buffer_size > int(service_signature_definition_length))
+				if (parameter_buffer_size > int(service_signature_definition_size))
 				{
 					//CString local_chat;
 					//local_chat = CString(L"Партнёр отправил сообщение ") + CString(L"с адреса ") + parameter_socket_address_peer_ip_6.DottedDecimal() + CString(L" с порта ") + local_port_string + CString(L" в ") + CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y")) + CString(L"\r\n");
@@ -3521,7 +3963,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						//list_chat_AddString(local_main_dialog,local_chat);
 					}
 
-					CString local_message((wchar_t*)(encrypt::encrypt_xor(parameter_buffer + service_signature_definition_length, parameter_buffer_size - service_signature_definition_length, xor_code)));
+					CString local_message((wchar_t*)(encrypt::encrypt_xor(parameter_buffer + service_signature_definition_size, parameter_buffer_size - service_signature_definition_size, xor_code)));
 
 					if (local_message[0] != L'/')
 					{
@@ -3533,7 +3975,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 							break;
 						}
 						{
-							list_chat_AddString(local_main_dialog, local_chat);
+							list_chat_AddString(local_main_dialog, local_chat, false);
 						}
 
 						if (local_main_dialog->get_command_terminate_application())
@@ -3543,17 +3985,23 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						{
 							local_chat = CString(L"Сообщение \"") + local_message + CString(L"\"\r\n");
 
-							list_chat_AddString(local_main_dialog, local_chat);
+							list_chat_AddString(local_main_dialog, local_chat, false);
 						}
 					}
 					else
 					{
+						if (local_message.GetLength() < command_name_length)
+						{
+							// все команды имеют длину command_name_length символов в кодировке UNICODE-16
+							break;
+						}
+
 						CString local_command_received;
 						int local_buffer_parameter_offset = 0;
 
 						for (int local_buffer_counter = 0; local_buffer_counter < local_message.GetLength(); local_buffer_counter++)
 						{
-							if (local_message[local_buffer_counter] == L' ')
+							if (size_t(local_buffer_counter)>=command_name_length)
 							{
 								local_buffer_parameter_offset = local_buffer_counter + 1;
 								break;
@@ -3564,6 +4012,9 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 								local_command_received += local_message[local_buffer_counter];
 							}
 						}
+
+						size_t local_command_received_length = size_t(local_command_received.GetLength());
+						assert(command_name_length == local_command_received_length);
 
 						CString local_command_parameter_received;
 
@@ -3581,7 +4032,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 
 						for (int local_buffer_counter = local_buffer_parameter_offset; local_buffer_counter < local_message.GetLength(); local_buffer_counter++)
 						{
-							if (local_message[local_buffer_counter] == L' ')
+							if (local_message[local_buffer_counter] == L';')
 							{
 								break;
 							}
@@ -3714,13 +4165,109 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 									break;
 								}
 								{
-									ShellExecute(NULL, CString("open"), local_command_parameter_received, NULL, NULL, SW_SHOWNORMAL);
+									CString local_command;
+									CString local_command_parameters;
+									CString local_command_directory;
+									int local_command_parameters_offset = 0;
+									for (int local_buffer_counter = 0; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+									{
+										if (local_command_parameter_received[local_buffer_counter] == L'\"')
+										{
+											local_command_parameters_offset++;
+											local_command += local_command_parameter_received[local_buffer_counter];
+											for (local_buffer_counter++; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+											{
+												if (local_command_parameter_received[local_buffer_counter] == L'\"')
+												{
+													local_command_parameters_offset++;
+													local_command += local_command_parameter_received[local_buffer_counter];
+													break;
+												}
+												else
+												{
+													local_command_parameters_offset++;
+													local_command += local_command_parameter_received[local_buffer_counter];
+												}
+											}
+											continue;
+										}
+										if (local_command_parameter_received[local_buffer_counter] == L' ')
+										{
+											local_command_parameters_offset++;
+											break;
+										}
+										else
+										{
+											local_command_parameters_offset++;
+											local_command += local_command_parameter_received[local_buffer_counter];
+										}
+									}
+									for (int local_buffer_counter = local_command_parameters_offset; local_buffer_counter < local_command_parameter_received.GetLength(); local_buffer_counter++)
+									{
+										if (local_command_parameter_received[local_buffer_counter] == L';')
+										{
+											break;
+										}
+										else
+										{
+											local_command_parameters += local_command_parameter_received[local_buffer_counter];
+										}
+									}
+
+									CString local_command_temp = local_command;
+									int local_command_buffer_counter = local_command_temp.GetLength() - 1;
+									for (; local_command_buffer_counter >= 0; local_command_buffer_counter--)
+									{
+										if (local_command_temp[local_command_buffer_counter] == L'\\')
+										{
+											break;
+										}
+									}
+									for (int local_buffer_counter = 0; local_buffer_counter <= local_command_buffer_counter; local_buffer_counter++)
+									{
+										local_command_directory += local_command_temp[local_buffer_counter];
+									}
+									if (local_command_directory.GetLength() > 0)
+									{
+										if (local_command_directory[0] == L'\"')
+										{
+											local_command_directory = local_command_directory.Right(local_command_directory.GetLength()-1);
+										}
+										if (local_command_directory.GetLength() > 0)
+										{
+											if (local_command_directory[local_command_directory.GetLength() - 1] == L'\"')
+											{
+												local_command_directory = local_command_directory.Left(local_command_directory.GetLength() - 1);
+											}
+										}
+									}
+									local_command = CString();
+									for (int local_buffer_counter = local_command_buffer_counter+1; local_buffer_counter < local_command_temp.GetLength(); local_buffer_counter++)
+									{
+										local_command += local_command_temp[local_buffer_counter];
+									}
+									if (local_command.GetLength() > 0)
+									{
+										if (local_command[0] == L'\"')
+										{
+											local_command = local_command.Right(local_command.GetLength() - 1);
+										}
+										if (local_command.GetLength() > 0)
+										{
+											if (local_command[local_command.GetLength() - 1] == L'\"')
+											{
+												local_command = local_command.Left(local_command.GetLength() - 1);
+											}
+										}
+									}
+
+									ShellExecute(NULL, CString("open"), local_command, local_command_parameters, local_command_directory, SW_SHOWNORMAL);
 								}
 							}
 						}
 						if (local_command_received == command_video)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3760,7 +4307,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						}
 						if (local_command_received == command_video_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3800,7 +4347,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						}
 						if (local_command_received == command_web_camera_video)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3840,7 +4387,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						}
 						if (local_command_received == command_web_camera_video_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3880,7 +4427,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						}
 						if (local_command_received == command_audio)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -3920,7 +4467,7 @@ UINT __cdecl datagram_act_on_request_connection_thread_ip_6(LPVOID parameter)
 						}
 						if (local_command_received == command_audio_end)
 						{
-							size_t data_buffer_offset = service_signature_definition_length + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
+							size_t data_buffer_offset = service_signature_definition_size + local_command_received.GetLength() * sizeof(wchar_t) + sizeof(wchar_t);
 							size_t data_buffer_length = parameter_buffer_size - data_buffer_offset;
 							BYTE *data_buffer = new BYTE[data_buffer_length];
 							memcpy(data_buffer, parameter_buffer + data_buffer_offset, data_buffer_length);
@@ -4015,7 +4562,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_4(LPVOID parameter)
 
 		wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -4064,7 +4611,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_4(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4088,7 +4635,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_4(LPVOID parameter)
 
 	try
 	{
-		local_bytes_sent = local_blocking_socket.SendDatagram(service_signature, service_signature_definition_length, local_socket_address, CONST_WAIT_TIME_SEND);
+		local_bytes_sent = local_blocking_socket.SendDatagram(service_signature, service_signature_definition_size, local_socket_address, CONST_WAIT_TIME_SEND);
 
 		local_data_size_send += local_bytes_sent;
 	}
@@ -4100,7 +4647,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_4(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4163,7 +4710,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_6(LPVOID parameter)
 
 		wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -4212,7 +4759,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_6(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4236,7 +4783,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_6(LPVOID parameter)
 
 	try
 	{
-		local_bytes_sent = local_blocking_socket.SendDatagram(service_signature, service_signature_definition_length, local_socket_address, CONST_WAIT_TIME_SEND);
+		local_bytes_sent = local_blocking_socket.SendDatagram(service_signature, service_signature_definition_size, local_socket_address, CONST_WAIT_TIME_SEND);
 
 		local_data_size_send += local_bytes_sent;
 	}
@@ -4248,7 +4795,7 @@ UINT __cdecl datagram_connect_connection_thread_loop_ip_6(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4447,7 +4994,7 @@ UINT __cdecl datagram_register_thread_ip_4(LPVOID parameter)
 
 			wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -4478,7 +5025,7 @@ UINT __cdecl datagram_register_thread_ip_4(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4502,11 +5049,11 @@ UINT __cdecl datagram_register_thread_ip_4(LPVOID parameter)
 
 		char send_buffer[CONST_MESSAGE_LENGTH];
 
-		int send_buffer_data_length = service_signature_definition_length;
+		int send_buffer_data_length = service_signature_definition_size;
 
 		ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-		memcpy(send_buffer, service_signature, service_signature_definition_length);
+		memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 		CString send_data_string;
 
@@ -4544,7 +5091,7 @@ UINT __cdecl datagram_register_thread_ip_4(LPVOID parameter)
 
 		char xor_code = _wtoi(xor_code_string);
 
-		encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+		encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 		try
 		{
@@ -4560,7 +5107,7 @@ UINT __cdecl datagram_register_thread_ip_4(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4657,7 +5204,7 @@ UINT __cdecl datagram_register_thread_ip_6(LPVOID parameter)
 
 			wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -4688,7 +5235,7 @@ UINT __cdecl datagram_register_thread_ip_6(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size - 1000;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -4712,11 +5259,11 @@ UINT __cdecl datagram_register_thread_ip_6(LPVOID parameter)
 
 		char send_buffer[CONST_MESSAGE_LENGTH];
 
-		int send_buffer_data_length = service_signature_definition_length;
+		int send_buffer_data_length = service_signature_definition_size;
 
 		ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-		memcpy(send_buffer, service_signature, service_signature_definition_length);
+		memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 		CString send_data_string;
 
@@ -4754,7 +5301,7 @@ UINT __cdecl datagram_register_thread_ip_6(LPVOID parameter)
 
 		char xor_code = _wtoi(xor_code_string);
 
-		encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+		encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 		try
 		{
@@ -4770,7 +5317,7 @@ UINT __cdecl datagram_register_thread_ip_6(LPVOID parameter)
 			const int local_system_error_message_size = local_error_message_size;
 			wchar_t local_system_error_message[local_system_error_message_size];
 
-			CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+			CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 			local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -5601,7 +6148,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -5672,7 +6219,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -5693,7 +6240,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -5719,11 +6266,11 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -5775,13 +6322,13 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -5800,28 +6347,28 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
 					);
 
 					try
@@ -5838,7 +6385,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -5930,11 +6477,11 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -5972,7 +6519,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -5988,7 +6535,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -6260,7 +6807,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -6331,7 +6878,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -6352,7 +6899,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -6378,11 +6925,11 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -6435,13 +6982,13 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -6460,28 +7007,28 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
 					);
 
 					try
@@ -6498,7 +7045,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -6590,11 +7137,11 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -6631,7 +7178,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -6647,7 +7194,7 @@ UINT __cdecl datagram_send_video_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -7090,7 +7637,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -7171,7 +7718,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -7192,7 +7739,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -7218,11 +7765,11 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -7275,13 +7822,13 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -7296,26 +7843,26 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -7332,7 +7879,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -7403,11 +7950,11 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -7445,7 +7992,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -7461,7 +8008,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_4(LPVOID parame
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -7813,7 +8360,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -7894,7 +8441,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -7915,7 +8462,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -7941,11 +8488,11 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -7998,13 +8545,13 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -8019,26 +8566,26 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -8055,7 +8602,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -8126,11 +8673,11 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -8168,7 +8715,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -8184,7 +8731,7 @@ UINT __cdecl datagram_send_web_camera_video_connection_thread_ip_6(LPVOID parame
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -8374,6 +8921,11 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PrepareWebCameraVideo(CString para
 
 		if (SUCCEEDED(local_write_result))
 		{
+			if (local_bytes_written == 0)
+			{
+				CString Error(L"Error");
+			}
+
 			int local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = 0;
 
 			{
@@ -8387,6 +8939,10 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PrepareWebCameraVideo(CString para
 			{
 
 			}
+		}
+		else
+		{
+			CString Error(L"Error");
 		}
 	}
 
@@ -8436,54 +8992,32 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::DrawWebCameraVideo(CString paramet
 			STATSTG local_istream_statstg;
 			HRESULT local_stat_result = current_received_web_camera_video_stream->stream->Stat(&local_istream_statstg, STATFLAG::STATFLAG_DEFAULT);
 
-			WEB_CAMERA_FRAME current_received_web_camera_frame;
-
-			current_received_web_camera_frame.arrival_time = CTime::GetCurrentTime();
-			current_received_web_camera_frame.frame_data_size = UINT(local_istream_statstg.cbSize.QuadPart);
-			current_received_web_camera_frame.frame_data = new BYTE[current_received_web_camera_frame.frame_data_size];
-
-			if (current_received_web_camera_frame.frame_data != NULL)
+			if (local_istream_statstg.cbSize.QuadPart != 0)
 			{
-				ULONG bytes_read = 0;
-				HRESULT local_Stream_Read_RESULT = current_received_web_camera_video_stream->stream->Read(current_received_web_camera_frame.frame_data, ULONG(local_istream_statstg.cbSize.QuadPart), &bytes_read);
 
-				if (SUCCEEDED(local_Stream_Read_RESULT))
+				WEB_CAMERA_FRAME current_received_web_camera_frame;
+
+				current_received_web_camera_frame.arrival_time = CTime::GetCurrentTime();
+				current_received_web_camera_frame.frame_data_size = UINT(local_istream_statstg.cbSize.QuadPart);
+				current_received_web_camera_frame.frame_data = new BYTE[current_received_web_camera_frame.frame_data_size];
+
+				if (current_received_web_camera_frame.frame_data != NULL)
 				{
-					if (ULONG(local_istream_statstg.cbSize.QuadPart) != bytes_read)
-					{
-						CString Error(L"Error");
+					ULONG bytes_read = 0;
+					HRESULT local_Stream_Read_RESULT = current_received_web_camera_video_stream->stream->Read(current_received_web_camera_frame.frame_data, ULONG(local_istream_statstg.cbSize.QuadPart), &bytes_read);
 
-						delete[] current_received_web_camera_frame.frame_data;
-						current_received_web_camera_frame.frame_data = NULL;
-					}
-					else
+					if (SUCCEEDED(local_Stream_Read_RESULT))
 					{
-						if (received_web_camera_video_frame_stream.size() == 0)
+						if (ULONG(local_istream_statstg.cbSize.QuadPart) != bytes_read || bytes_read == 0)
 						{
-							STREAM_WEB_CAMERA_FRAME_INFORMATION current_received_web_camera_video_frame;
+							CString Error(L"Error");
 
-							current_received_web_camera_video_frame.frames.push_back(current_received_web_camera_frame);
-							current_received_web_camera_video_frame.sequence_source_number = received_sequence;
-							current_received_web_camera_video_frame.source_address_string = parameter_string;
-
-							received_web_camera_video_frame_stream.push_back(current_received_web_camera_video_frame);
+							delete[] current_received_web_camera_frame.frame_data;
+							current_received_web_camera_frame.frame_data = NULL;
 						}
 						else
 						{
-							auto current_received_web_camera_video_frame_stream_iterator = received_web_camera_video_frame_stream.begin();
-
-							for (; current_received_web_camera_video_frame_stream_iterator != received_web_camera_video_frame_stream.end(); current_received_web_camera_video_frame_stream_iterator++)
-							{
-								if (current_received_web_camera_video_frame_stream_iterator->sequence_source_number == received_sequence)
-								{
-									current_received_web_camera_video_frame_stream_iterator->frames.push_back(current_received_web_camera_frame);
-									current_received_web_camera_video_frame_stream_iterator->source_address_string = parameter_string;
-
-									break;
-								}
-							}
-
-							if (current_received_web_camera_video_frame_stream_iterator == received_web_camera_video_frame_stream.end())
+							if (received_web_camera_video_frame_stream.size() == 0)
 							{
 								STREAM_WEB_CAMERA_FRAME_INFORMATION current_received_web_camera_video_frame;
 
@@ -8493,9 +9027,39 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::DrawWebCameraVideo(CString paramet
 
 								received_web_camera_video_frame_stream.push_back(current_received_web_camera_video_frame);
 							}
+							else
+							{
+								auto current_received_web_camera_video_frame_stream_iterator = received_web_camera_video_frame_stream.begin();
+
+								for (; current_received_web_camera_video_frame_stream_iterator != received_web_camera_video_frame_stream.end(); current_received_web_camera_video_frame_stream_iterator++)
+								{
+									if (current_received_web_camera_video_frame_stream_iterator->sequence_source_number == received_sequence)
+									{
+										current_received_web_camera_video_frame_stream_iterator->frames.push_back(current_received_web_camera_frame);
+										current_received_web_camera_video_frame_stream_iterator->source_address_string = parameter_string;
+
+										break;
+									}
+								}
+
+								if (current_received_web_camera_video_frame_stream_iterator == received_web_camera_video_frame_stream.end())
+								{
+									STREAM_WEB_CAMERA_FRAME_INFORMATION current_received_web_camera_video_frame;
+
+									current_received_web_camera_video_frame.frames.push_back(current_received_web_camera_frame);
+									current_received_web_camera_video_frame.sequence_source_number = received_sequence;
+									current_received_web_camera_video_frame.source_address_string = parameter_string;
+
+									received_web_camera_video_frame_stream.push_back(current_received_web_camera_video_frame);
+								}
+							}
 						}
 					}
 				}
+			}
+			else
+			{
+				CString Error(L"Error");
 			}
 
 			ULARGE_INTEGER zero_size = { 0,0 };
@@ -8558,12 +9122,67 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableVideo()
 						local_frame_parts_iterator++
 						)
 					{
-						delete[]local_frame_parts_iterator->frame_part_data;
+						if (local_frame_parts_iterator->frame_part_data != NULL)
+						{
+							delete[]local_frame_parts_iterator->frame_part_data;
+						}
+
+						local_frame_parts_iterator->frame_part_data = NULL;
+						local_frame_parts_iterator->frame_part_data_size = 0;
 					}
 				}
 			}
 
 			received_video_frame_stream.clear();
+		}
+
+		{
+			CSingleLock local_lock(&draw_web_camera_video_critical_section);
+
+			local_lock.Lock();
+
+			std::list<STREAM_WEB_CAMERA_FRAME_INFORMATION>::iterator current_received_web_camera_video_frame_stream = received_web_camera_video_frame_stream.begin();
+
+			for (; current_received_web_camera_video_frame_stream != received_web_camera_video_frame_stream.end(); current_received_web_camera_video_frame_stream++)
+			{
+				for
+					(
+						std::list<WEB_CAMERA_FRAME>::iterator current_received_web_camera_video_frame = current_received_web_camera_video_frame_stream->frames.begin()
+						;
+						current_received_web_camera_video_frame != current_received_web_camera_video_frame_stream->frames.end()
+						;
+						current_received_web_camera_video_frame++
+						)
+				{
+					/*/
+					for (
+						std::list<WEB_CAMERA_FRAME_PART>::iterator local_frame_parts_iterator = current_received_web_camera_video_frame->frame_parts.begin()
+						;
+						local_frame_parts_iterator != current_received_web_camera_video_frame->frame_parts.end()
+						;
+						local_frame_parts_iterator++
+						)
+					{
+						if (local_frame_parts_iterator->frame_part_data != NULL)
+						{
+							delete[]local_frame_parts_iterator->frame_part_data;
+						}
+
+						local_frame_parts_iterator->frame_part_data = NULL;
+						local_frame_parts_iterator->frame_part_data_size = 0;
+					}
+					/*/
+					if (current_received_web_camera_video_frame->frame_data != NULL)
+					{
+						delete[]current_received_web_camera_video_frame->frame_data;
+					}
+
+					current_received_web_camera_video_frame->frame_data = NULL;
+					current_received_web_camera_video_frame->frame_data_size = 0;
+				}
+			}
+
+			received_web_camera_video_frame_stream.clear();
 		}
 	}
 	else
@@ -8905,7 +9524,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -8991,7 +9610,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -9012,7 +9631,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -9043,11 +9662,11 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -9100,13 +9719,13 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -9121,26 +9740,26 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -9157,7 +9776,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -9191,11 +9810,11 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -9233,7 +9852,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -9249,7 +9868,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -9643,7 +10262,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -9731,7 +10350,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -9752,7 +10371,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -9783,11 +10402,11 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -9840,13 +10459,13 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -9861,26 +10480,26 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -9897,7 +10516,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -9931,11 +10550,11 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -9973,7 +10592,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -9989,7 +10608,7 @@ UINT __cdecl datagram_send_audio_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -10391,6 +11010,56 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableShowWebCamer
 			web_camera_dialog->Create(CWebCameraPictureDialog::IDD);
 			web_camera_dialog->ShowWindow(SW_SHOWNORMAL);
 		}
+
+		{
+			CSingleLock local_lock(&draw_web_camera_video_critical_section);
+
+			local_lock.Lock();
+
+			std::list<STREAM_WEB_CAMERA_FRAME_INFORMATION>::iterator current_received_web_camera_video_frame_stream = received_web_camera_video_frame_stream.begin();
+
+			for (; current_received_web_camera_video_frame_stream != received_web_camera_video_frame_stream.end(); current_received_web_camera_video_frame_stream++)
+			{
+				for
+					(
+						std::list<WEB_CAMERA_FRAME>::iterator current_received_web_camera_video_frame = current_received_web_camera_video_frame_stream->frames.begin()
+						;
+						current_received_web_camera_video_frame != current_received_web_camera_video_frame_stream->frames.end()
+						;
+						current_received_web_camera_video_frame++
+						)
+				{
+					if (current_received_web_camera_video_frame->frame_data != NULL)
+					{
+						delete[]current_received_web_camera_video_frame->frame_data;
+					}
+
+					current_received_web_camera_video_frame->frame_data = NULL;
+					current_received_web_camera_video_frame->frame_data_size = 0;
+
+					/*/
+					for (
+						std::list<WEB_CAMERA_FRAME_PART>::iterator local_frame_parts_iterator = current_received_web_camera_video_frame->frame_parts.begin()
+						;
+						local_frame_parts_iterator != current_received_web_camera_video_frame->frame_parts.end()
+						;
+						local_frame_parts_iterator++
+						)
+					{
+						if (local_frame_parts_iterator->frame_part_data != NULL)
+						{
+							delete[]local_frame_parts_iterator->frame_part_data;
+						}
+
+						local_frame_parts_iterator->frame_part_data = NULL;
+						local_frame_parts_iterator->frame_part_data_size = 0;
+					}
+					/*/
+				}
+			}
+
+			received_web_camera_video_frame_stream.clear();
+		}
 	}
 	else
 	{
@@ -10503,17 +11172,27 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 	}
 	else if (Cstl_network_ip_4_ip_6_udp_engineDialog_draw_video_timer_nIDEvent == nIDEvent)
 	{
+		if (get_command_terminate_application())
+		{
+			goto OnTimer_Exit;
+		}
+
 		CSingleLock lock(&draw_video_critical_section);
 		lock.Lock();
+
+		bool image_drawn = false;
 
 		//	Сборка и отрисовка
 		auto current_video_frame_stream = received_video_frame_stream.begin();
 
 		for (; current_video_frame_stream != received_video_frame_stream.end(); current_video_frame_stream++)
 		{
-			if (received_video_frame_stream.size() != 0)
+			if (image_drawn)
 			{
-				if (current_video_frame_stream->frames.size() != 0)
+			//	break;
+			}
+
+			{
 				{
 					CString source_address_string = current_video_frame_stream->source_address_string;
 
@@ -10525,6 +11204,12 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 							;
 							)
 					{
+
+						if (image_drawn)
+						{
+						//	break;
+						}
+
 						if (current_video_frame->frame_parts_number == current_video_frame->frame_parts.size())
 						{
 							//	Количество частей равно ожидаемому количеству частей - собираем части и отрисовываем, очищаем память, первого кадра в очереди текущей последовательности.
@@ -10553,21 +11238,10 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 								frame_size += local_frame_parts_iterator->frame_part_data_size;
 							}
 
-							BYTE *local_frame_buffer = new BYTE[frame_size];
-
-							UINT current_buffer_offset = 0;
-
-							CTime frame_arrival_time;
-
-							for
-								(
-									UINT local_parts_counter = 1
-									;
-									local_parts_counter <= current_video_frame->frame_parts_number
-									;
-									local_parts_counter++
-									)
+							if (frame_size == 0)
 							{
+								CString local_error(L"Error");
+
 								for (
 									auto local_frame_parts_iterator = current_video_frame->frame_parts.begin()
 									;
@@ -10576,201 +11250,258 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 									local_frame_parts_iterator++
 									)
 								{
-									if (local_parts_counter == local_frame_parts_iterator->frame_part_number)
+									if (local_frame_parts_iterator->frame_part_data != NULL)
 									{
-										if (local_frame_buffer != NULL)
-										{
-											memcpy(local_frame_buffer + current_buffer_offset, local_frame_parts_iterator->frame_part_data, local_frame_parts_iterator->frame_part_data_size);
-											current_buffer_offset += local_frame_parts_iterator->frame_part_data_size;
-
-											frame_arrival_time = local_frame_parts_iterator->arrival_time;
-										}
-
-										delete[]local_frame_parts_iterator->frame_part_data;
-
+										delete []local_frame_parts_iterator->frame_part_data;
 										local_frame_parts_iterator->frame_part_data = NULL;
-										local_frame_parts_iterator->frame_part_data_size = 0;
-
-										//local_frame_parts_iterator = current_video_frame->frame_parts.erase(local_frame_parts_iterator);
-
-										break;
 									}
 								}
 							}
-
-							if (local_frame_buffer != NULL)
+							else
 							{
-								ULONG local_bytes_written = 0;
-								frame_stream->Write(local_frame_buffer, frame_size, &local_bytes_written);
 
-								if (frame_size != local_bytes_written)
-								{
-									CString local_error(L"Error");
-								}
+								BYTE *local_frame_buffer = new BYTE[frame_size];
 
-								delete[]local_frame_buffer;
+								UINT current_buffer_offset = 0;
 
-								local_frame_buffer = NULL;
-							}
+								CTime frame_arrival_time;
 
-							ATL::CImage current_received_video_image;
-
-							LARGE_INTEGER liBeggining = { 0 };
-
-							frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
-
-							STATSTG local_istream_statstg;
-							HRESULT local_stat_result = frame_stream->Stat(&local_istream_statstg, STATFLAG::STATFLAG_DEFAULT);
-
-							HRESULT local_load_result = current_received_video_image.Load(frame_stream);
-
-							if (SUCCEEDED(local_load_result))
-							{
-								int local_IDC_CHECK_SAVE_PICTURES_state = 0;
-
-								{
-									//CSingleLock lock(&GUI_update_critical_section);
-									//lock.Lock();
-
-									local_IDC_CHECK_SAVE_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_PICTURES_state;
-								}
-
-								if (local_IDC_CHECK_SAVE_PICTURES_state != 0)
-								{
-									CString new_picture_file_name;
-
-									SYSTEMTIME local_system_time;
-
-									GetLocalTime(&local_system_time);
-
-									new_picture_file_name.Format
+								for
 									(
-										L"%04d-%02d-%02d %02d-%02d-%02d.%03d.PNG",
-										local_system_time.wYear,
-										local_system_time.wMonth,
-										local_system_time.wDay,
-										local_system_time.wHour,
-										local_system_time.wMinute,
-										local_system_time.wSecond,
-										local_system_time.wMilliseconds
-									);
+										UINT local_parts_counter = 1
+										;
+										local_parts_counter <= current_video_frame->frame_parts_number
+										;
+										local_parts_counter++
+										)
+								{
+									for (
+										auto local_frame_parts_iterator = current_video_frame->frame_parts.begin()
+										;
+										local_frame_parts_iterator != current_video_frame->frame_parts.end()
+										;
+										local_frame_parts_iterator++
+										)
+									{
+										if (local_parts_counter == local_frame_parts_iterator->frame_part_number)
+										{
+											if (local_frame_buffer != NULL)
+											{
+												memcpy(local_frame_buffer + current_buffer_offset, local_frame_parts_iterator->frame_part_data, local_frame_parts_iterator->frame_part_data_size);
+												current_buffer_offset += local_frame_parts_iterator->frame_part_data_size;
 
-									try
-									{
-										HRESULT local_save_result = current_received_video_image.Save(new_picture_file_name, Gdiplus::ImageFormatPNG);
-									}
-									catch (...)
-									{
-										CString local_fail(L"Fail");
+												frame_arrival_time = local_frame_parts_iterator->arrival_time;
+											}
+
+											delete[]local_frame_parts_iterator->frame_part_data;
+
+											local_frame_parts_iterator->frame_part_data = NULL;
+											local_frame_parts_iterator->frame_part_data_size = 0;
+
+											//local_frame_parts_iterator = current_video_frame->frame_parts.erase(local_frame_parts_iterator);
+
+											break;
+										}
 									}
 								}
 
-								int local_IDC_CHECK_RETRANSLATE_VIDEO_state = 0;
-
+								if (local_frame_buffer != NULL)
 								{
-									//CSingleLock lock(&GUI_update_critical_section);
-									//lock.Lock();
+									ULONG local_bytes_written = 0;
+									frame_stream->Write(local_frame_buffer, frame_size, &local_bytes_written);
 
-									local_IDC_CHECK_RETRANSLATE_VIDEO_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_VIDEO_state;
-								}
-
-								if (local_IDC_CHECK_RETRANSLATE_VIDEO_state != 0)
-								{
+									if (frame_size != local_bytes_written)
 									{
-										STREAM_INFORMATION local_retranslate_stream_information_ip_4;
-
-										LARGE_INTEGER liBeggining = { 0 };
-
-										frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
-
-										ULONG local_read = 0;
-										HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_4.stream);
-										local_retranslate_stream_information_ip_4.sequence_number = current_video_frame_stream->sequence_source_number;
-
-										retranslate_video_frames_ip_4.push_back(local_retranslate_stream_information_ip_4);
+										CString local_error(L"Error");
 									}
 
-									{
-										STREAM_INFORMATION local_retranslate_stream_information_ip_6;
+									delete[]local_frame_buffer;
 
-										LARGE_INTEGER liBeggining = { 0 };
-
-										frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
-
-										ULONG local_read = 0;
-										HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_6.stream);
-										local_retranslate_stream_information_ip_6.sequence_number = current_video_frame_stream->sequence_source_number;
-
-										retranslate_video_frames_ip_6.push_back(local_retranslate_stream_information_ip_6);
-									}
-
+									local_frame_buffer = NULL;
 								}
 
+								ATL::CImage current_received_video_image;
+
+								LARGE_INTEGER liBeggining = { 0 };
+
+								frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+
+								STATSTG local_istream_statstg;
+								HRESULT local_stat_result = frame_stream->Stat(&local_istream_statstg, STATFLAG::STATFLAG_DEFAULT);
+
+								HRESULT local_load_result = current_received_video_image.Load(frame_stream);
+
+								if (SUCCEEDED(local_load_result))
 								{
-									CRect local_window_rectangle;
+									int local_IDC_CHECK_SAVE_PICTURES_state = 0;
 
-									if (received_video_dialog != NULL)
 									{
-										CSingleLock lock(&delete_received_video_dialog_critical_section);
+										//CSingleLock lock(&GUI_update_critical_section);
+										//lock.Lock();
 
-										lock.Lock();
+										local_IDC_CHECK_SAVE_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_PICTURES_state;
+									}
 
-										if (get_command_terminate_application())
-										{
-											//if (parameter_data != NULL)
-											//{
-											//	delete[]parameter_data;
-											//}
+									if (local_IDC_CHECK_SAVE_PICTURES_state != 0)
+									{
+										CString new_picture_file_name;
 
-											return;
-										}
-										received_video_dialog->static_image.GetClientRect(&local_window_rectangle);
+										SYSTEMTIME local_system_time;
 
-										if (get_command_terminate_application())
-										{
-											//if (parameter_data != NULL)
-											//{
-											//	delete[]parameter_data;
-											//}
+										GetLocalTime(&local_system_time);
 
-											goto OnTimer_Exit;
-										}
-										HDC local_HDC = *received_video_dialog->static_image.GetDC();
-
-										if (get_command_terminate_application())
-										{
-											//if (parameter_data != NULL)
-											//{
-											//	delete[]parameter_data;
-											//}
-
-											goto OnTimer_Exit;
-										}
+										new_picture_file_name.Format
+										(
+											L"%04d-%02d-%02d %02d-%02d-%02d.%03d.PNG",
+											local_system_time.wYear,
+											local_system_time.wMonth,
+											local_system_time.wDay,
+											local_system_time.wHour,
+											local_system_time.wMinute,
+											local_system_time.wSecond,
+											local_system_time.wMilliseconds
+										);
 
 										try
 										{
-											current_received_video_image.Draw(local_HDC, local_window_rectangle, Gdiplus::InterpolationMode::InterpolationModeDefault);
+											HRESULT local_save_result = current_received_video_image.Save(new_picture_file_name, Gdiplus::ImageFormatPNG);
 										}
 										catch (...)
 										{
-											//if (parameter_data != NULL)
-											//{
-											//	delete[]parameter_data;
-											//}
-
-											goto OnTimer_Exit;
+											CString local_fail(L"Fail");
 										}
+									}
 
-										if (get_command_terminate_application())
+									int local_IDC_CHECK_RETRANSLATE_VIDEO_state = 0;
+
+									{
+										//CSingleLock lock(&GUI_update_critical_section);
+										//lock.Lock();
+
+										local_IDC_CHECK_RETRANSLATE_VIDEO_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_VIDEO_state;
+									}
+
+									if (local_IDC_CHECK_RETRANSLATE_VIDEO_state != 0)
+									{
 										{
-											//if (parameter_data != NULL)
-											//{
-											//	delete[]parameter_data;
-											//}
+											STREAM_INFORMATION local_retranslate_stream_information_ip_4;
 
-											goto OnTimer_Exit;
+											LARGE_INTEGER liBeggining = { 0 };
+
+											frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+
+											ULONG local_read = 0;
+											HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_4.stream);
+											local_retranslate_stream_information_ip_4.sequence_number = current_video_frame_stream->sequence_source_number;
+
+											retranslate_video_frames_ip_4.push_back(local_retranslate_stream_information_ip_4);
 										}
-										received_video_dialog->SetWindowTextW(CString(L"Видео от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
+
+										{
+											STREAM_INFORMATION local_retranslate_stream_information_ip_6;
+
+											LARGE_INTEGER liBeggining = { 0 };
+
+											frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+
+											ULONG local_read = 0;
+											HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_6.stream);
+											local_retranslate_stream_information_ip_6.sequence_number = current_video_frame_stream->sequence_source_number;
+
+											retranslate_video_frames_ip_6.push_back(local_retranslate_stream_information_ip_6);
+										}
+
+									}
+
+									{
+										CRect local_window_rectangle;
+
+										if (received_video_dialog != NULL)
+										{
+											CSingleLock lock(&delete_received_video_dialog_critical_section);
+
+											lock.Lock();
+
+											if (get_command_terminate_application())
+											{
+												//if (parameter_data != NULL)
+												//{
+												//	delete[]parameter_data;
+												//}
+
+												goto OnTimer_Exit;
+											}
+											received_video_dialog->static_image.GetClientRect(&local_window_rectangle);
+
+											if (get_command_terminate_application())
+											{
+												//if (parameter_data != NULL)
+												//{
+												//	delete[]parameter_data;
+												//}
+
+												goto OnTimer_Exit;
+											}
+
+											if (get_command_terminate_application())
+											{
+												//if (parameter_data != NULL)
+												//{
+												//	delete[]parameter_data;
+												//}
+
+												goto OnTimer_Exit;
+											}
+
+											HDC local_HDC = NULL;
+											auto temp_1 = received_video_dialog->static_image.GetDC();
+											if (temp_1 != NULL)
+											{
+												local_HDC = *temp_1;
+											}
+											else
+											{
+												CString local_fail(L"Fail");
+											}
+
+											if (local_HDC != NULL)
+											{
+												try
+												{
+													current_received_video_image.Draw(local_HDC, local_window_rectangle, Gdiplus::InterpolationMode::InterpolationModeDefault);
+
+													temp_1->DeleteDC();
+												}
+												catch (...)
+												{
+													//if (parameter_data != NULL)
+													//{
+													//	delete[]parameter_data;
+													//}
+
+													temp_1->DeleteDC();
+
+													goto OnTimer_Exit;
+												}
+											}
+											else
+											{
+												CString local_fail(L"Fail");
+											}
+
+											if (get_command_terminate_application())
+											{
+												//if (parameter_data != NULL)
+												//{
+												//	delete[]parameter_data;
+												//}
+
+												goto OnTimer_Exit;
+											}
+											received_video_dialog->SetWindowTextW(CString(L"Видео от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
+
+											image_drawn = true;
+										}
 									}
 								}
 							}
@@ -10828,8 +11559,15 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 	}
 	else if (Cstl_network_ip_4_ip_6_udp_engineDialog_draw_web_camera_timer_nIDEvent == nIDEvent)
 	{
+		if (get_command_terminate_application())
+		{
+			goto OnTimer_Exit;
+		}
+
 		CSingleLock lock(&draw_web_camera_video_critical_section);
 		lock.Lock();
+
+		bool image_drawn = false;
 
 		CRect local_window_rectangle;
 
@@ -10846,7 +11584,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 				//	delete[]parameter_data;
 				//}
 
-				return;
+				goto OnTimer_Exit;
 			}
 			received_video_dialog->static_image.GetClientRect(&local_window_rectangle);
 
@@ -10859,8 +11597,6 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 
 				goto OnTimer_Exit;
 			}
-			HDC local_HDC = *received_video_dialog->static_image.GetDC();
-
 			if (get_command_terminate_application())
 			{
 				//if (parameter_data != NULL)
@@ -10872,171 +11608,211 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnTimer(UINT_PTR nIDEvent)
 			}
 
 
-			if (received_web_camera_video_frame_stream.size() != 0)
 			{
-				auto current_received_web_camera_video_frame_stream = received_web_camera_video_frame_stream.begin();
+				auto &current_received_web_camera_video_frame_stream = received_web_camera_video_frame_stream.begin();
 
-				if (current_received_web_camera_video_frame_stream->frames.size() != 0)
+				for (;current_received_web_camera_video_frame_stream!=received_web_camera_video_frame_stream.end(); current_received_web_camera_video_frame_stream++)
 				{
 					auto &current_received_web_camera_frame = current_received_web_camera_video_frame_stream->frames.begin();
 
-					CComPtr<IStream> frame_stream;
-
-					HRESULT local_create_frame_IStream_result = CreateStreamOnHGlobal(0, TRUE, &frame_stream);
-
+					for (; current_received_web_camera_frame != current_received_web_camera_video_frame_stream->frames.end(); current_received_web_camera_frame = current_received_web_camera_video_frame_stream->frames.begin())
 					{
-						LARGE_INTEGER liBeggining = { 0 };
+						CComPtr<IStream> frame_stream;
 
-						frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
-					}
+						HRESULT local_create_frame_IStream_result = CreateStreamOnHGlobal(0, TRUE, &frame_stream);
 
-					auto frame_size = current_received_web_camera_frame->frame_data_size;
+						{
+							LARGE_INTEGER liBeggining = { 0 };
 
-					auto frame_arrival_time = current_received_web_camera_frame->arrival_time;
+							frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+						}
 
-					if(current_received_web_camera_frame->frame_data!=NULL)
-					{
-						ULONG local_bytes_written = 0;
-						frame_stream->Write(current_received_web_camera_frame->frame_data, frame_size, &local_bytes_written);
+						auto frame_size = current_received_web_camera_frame->frame_data_size;
 
-						if (frame_size != local_bytes_written)
+						if (frame_size == 0)
 						{
 							CString local_error(L"Error");
 						}
-					}
 
-					ATL::CImage current_received_web_camera_video_image;
+						auto frame_arrival_time = current_received_web_camera_frame->arrival_time;
 
-					LARGE_INTEGER liBeggining = { 0 };
-
-					frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
-
-					STATSTG local_istream_statstg;
-					HRESULT local_stat_result = frame_stream->Stat(&local_istream_statstg, STATFLAG::STATFLAG_DEFAULT);
-
-					HRESULT local_load_result = current_received_web_camera_video_image.Load(frame_stream);
-
-					auto sequence_source_number = current_received_web_camera_video_frame_stream->sequence_source_number;
-					auto source_address_string = current_received_web_camera_video_frame_stream->source_address_string;
-
-					current_received_web_camera_video_frame_stream->frames.pop_front();
-
-					if (SUCCEEDED(local_load_result))
-					{
-						int local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = 0;
-
+						if (current_received_web_camera_frame->frame_data != NULL)
 						{
-							//CSingleLock lock(&GUI_update_critical_section);
-							//lock.Lock();
+							ULONG local_bytes_written = 0;
+							frame_stream->Write(current_received_web_camera_frame->frame_data, frame_size, &local_bytes_written);
 
-							local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state;
-						}
-
-						if (local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state != 0)
-						{
-							CString new_picture_file_name;
-
-							SYSTEMTIME local_system_time;
-
-							GetLocalTime(&local_system_time);
-
-							new_picture_file_name.Format
-							(
-								L"%04d-%02d-%02d %02d-%02d-%02d.%03d.JPEG",
-								local_system_time.wYear,
-								local_system_time.wMonth,
-								local_system_time.wDay,
-								local_system_time.wHour,
-								local_system_time.wMinute,
-								local_system_time.wSecond,
-								local_system_time.wMilliseconds
-							);
-
-							try
+							if (frame_size != local_bytes_written)
 							{
-								HRESULT local_save_result = current_received_web_camera_video_image.Save(new_picture_file_name, Gdiplus::ImageFormatJPEG);
-							}
-							catch (...)
-							{
-								CString local_fail(L"Fail");
+								CString local_error(L"Error");
 							}
 						}
 
+						ATL::CImage current_received_web_camera_video_image;
 
+						LARGE_INTEGER liBeggining = { 0 };
 
+						frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
 
-						try
+						STATSTG local_istream_statstg;
+						HRESULT local_stat_result = frame_stream->Stat(&local_istream_statstg, STATFLAG::STATFLAG_DEFAULT);
+
+						HRESULT local_load_result = current_received_web_camera_video_image.Load(frame_stream);
+
+						auto sequence_source_number = current_received_web_camera_video_frame_stream->sequence_source_number;
+						auto source_address_string = current_received_web_camera_video_frame_stream->source_address_string;
+
+						if (SUCCEEDED(local_load_result))
 						{
-							current_received_web_camera_video_image.Draw(local_HDC, local_window_rectangle, Gdiplus::InterpolationMode::InterpolationModeDefault);
-						}
-						catch (...)
-						{
-							//if (parameter_data != NULL)
-							//{
-							//	delete[]parameter_data;
-							//}
-
-							goto OnTimer_Exit;
-						}
-
-						if (get_command_terminate_application())
-						{
-							//if (parameter_data != NULL)
-							//{
-							//	delete[]parameter_data;
-							//}
-
-							goto OnTimer_Exit;
-						}
-						received_video_dialog->SetWindowTextW(CString(L"Видео с веб камеры от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
-
-						{
-							int local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = 0;
+							int local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = 0;
 
 							{
 								//CSingleLock lock(&GUI_update_critical_section);
 								//lock.Lock();
 
-								local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state;
+								local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state = GUI_CONTROLS_STATE_data.IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state;
 							}
 
-							if (local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state != 0)
+							if (local_IDC_CHECK_SAVE_WEB_CAMERA_PICTURES_state != 0)
 							{
+								CString new_picture_file_name;
+
+								SYSTEMTIME local_system_time;
+
+								GetLocalTime(&local_system_time);
+
+								new_picture_file_name.Format
+								(
+									L"%04d-%02d-%02d %02d-%02d-%02d.%03d.JPEG",
+									local_system_time.wYear,
+									local_system_time.wMonth,
+									local_system_time.wDay,
+									local_system_time.wHour,
+									local_system_time.wMinute,
+									local_system_time.wSecond,
+									local_system_time.wMilliseconds
+								);
+
+								try
 								{
-									STREAM_INFORMATION local_retranslate_stream_information_ip_4;
+									HRESULT local_save_result = current_received_web_camera_video_image.Save(new_picture_file_name, Gdiplus::ImageFormatJPEG);
+								}
+								catch (...)
+								{
+									CString local_fail(L"Fail");
+								}
+							}
 
-									LARGE_INTEGER liBeggining = { 0 };
+							HDC local_HDC = NULL;
+							auto temp_1 = received_video_dialog->static_image.GetDC();
+							if (temp_1 != NULL)
+							{
+								local_HDC = *temp_1;
+							}
+							else
+							{
+								CString local_fail(L"Fail");
+							}
 
-									frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+							if (local_HDC != NULL)
+							{
+								try
+								{
+									current_received_web_camera_video_image.Draw(local_HDC, local_window_rectangle, Gdiplus::InterpolationMode::InterpolationModeDefault);
 
-									ULONG local_read = 0;
-									HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_4.stream);
-									local_retranslate_stream_information_ip_4.sequence_number = sequence_source_number;
+									temp_1->DeleteDC();
+								}
+								catch (...)
+								{
+									//if (parameter_data != NULL)
+									//{
+									//	delete[]parameter_data;
+									//}
 
-									retranslate_web_camera_video_frames_ip_4.push_back(local_retranslate_stream_information_ip_4);
+									temp_1->DeleteDC();
+
+									goto OnTimer_Exit;
+								}
+							}
+							else
+							{
+								CString local_fail(L"Fail");
+							}
+
+							if (get_command_terminate_application())
+							{
+								//if (parameter_data != NULL)
+								//{
+								//	delete[]parameter_data;
+								//}
+
+								goto OnTimer_Exit;
+							}
+							received_video_dialog->SetWindowTextW(CString(L"Видео с веб камеры от ") + source_address_string + CString(L" полученное в ") + frame_arrival_time.Format(CString(L"%H:%M:%S %A, %B %d, %Y")));
+
+							image_drawn = true;
+
+							{
+								int local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = 0;
+
+								{
+									//CSingleLock lock(&GUI_update_critical_section);
+									//lock.Lock();
+
+									local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state = GUI_CONTROLS_STATE_data.IDC_CHECK_RETRANSLATE_WEB_CAMERA_state;
 								}
 
+								if (local_IDC_CHECK_RETRANSLATE_WEB_CAMERA_state != 0)
 								{
-									STREAM_INFORMATION local_retranslate_stream_information_ip_6;
+									{
+										STREAM_INFORMATION local_retranslate_stream_information_ip_4;
 
-									LARGE_INTEGER liBeggining = { 0 };
+										LARGE_INTEGER liBeggining = { 0 };
 
-									frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+										frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
 
-									ULONG local_read = 0;
-									HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_6.stream);
-									local_retranslate_stream_information_ip_6.sequence_number = sequence_source_number;
+										ULONG local_read = 0;
+										HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_4.stream);
+										local_retranslate_stream_information_ip_4.sequence_number = sequence_source_number;
 
-									retranslate_web_camera_video_frames_ip_6.push_back(local_retranslate_stream_information_ip_6);
+										retranslate_web_camera_video_frames_ip_4.push_back(local_retranslate_stream_information_ip_4);
+									}
+
+									{
+										STREAM_INFORMATION local_retranslate_stream_information_ip_6;
+
+										LARGE_INTEGER liBeggining = { 0 };
+
+										frame_stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
+
+										ULONG local_read = 0;
+										HRESULT local_clone_IStream_result = frame_stream->Clone(&local_retranslate_stream_information_ip_6.stream);
+										local_retranslate_stream_information_ip_6.sequence_number = sequence_source_number;
+
+										retranslate_web_camera_video_frames_ip_6.push_back(local_retranslate_stream_information_ip_6);
+									}
 								}
 							}
 						}
+						current_received_web_camera_video_frame_stream->frames.pop_front();
+						if (image_drawn)
+						{
+						//	break;
+						}
 					}
+					if (image_drawn)
+					{
+					//	break;
+					}
+
 				}
 			}
 		}
 	}
 	else if (Cstl_network_ip_4_ip_6_udp_engineDialog_play_sound_timer_nIDEvent == nIDEvent)
+	{
+
+	}
+	else if (Cstl_network_ip_4_ip_6_udp_engineDialog_Quality_Control_timer_nIDEvent == nIDEvent)
 	{
 
 	}
@@ -11296,7 +12072,7 @@ UINT _cdecl upnp_external_ipv4_detection_thread(LPVOID parameter)
 		const int local_system_error_message_size = local_error_message_size - 1000;
 		wchar_t local_system_error_message[local_system_error_message_size];
 
-		CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+		CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 		wcscpy_s(local_system_error_message, local_error_message_size, error);
 
@@ -11730,7 +12506,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -11820,7 +12596,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -11841,7 +12617,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -11867,11 +12643,11 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -11923,13 +12699,13 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -11948,28 +12724,28 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
 					);
 
 					try
@@ -11986,7 +12762,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -12078,11 +12854,11 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -12120,7 +12896,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -12136,7 +12912,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -12413,7 +13189,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -12484,7 +13260,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -12505,7 +13281,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -12531,11 +13307,11 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -12588,13 +13364,13 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -12613,28 +13389,28 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[2] = DWORD(local_sequence_frame_number);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 3 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 3 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 3 * sizeof(DWORD))
 					);
 
 					try
@@ -12651,7 +13427,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -12743,11 +13519,11 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -12784,7 +13560,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -12800,7 +13576,7 @@ UINT __cdecl datagram_retranslate_video_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -13142,7 +13918,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -13223,7 +13999,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -13244,7 +14020,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -13270,11 +14046,11 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -13327,13 +14103,13 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -13348,26 +14124,26 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -13384,7 +14160,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -13455,11 +14231,11 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -13497,7 +14273,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -13513,7 +14289,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_4(LPVOID
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -13861,7 +14637,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -13942,7 +14718,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -13963,7 +14739,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -13989,11 +14765,11 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -14046,13 +14822,13 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -14067,26 +14843,26 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -14103,7 +14879,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -14174,11 +14950,11 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -14216,7 +14992,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -14232,7 +15008,7 @@ UINT __cdecl datagram_retranslate_web_camera_video_connection_thread_ip_6(LPVOID
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -14646,7 +15422,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -14733,7 +15509,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -14754,7 +15530,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -14785,11 +15561,11 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -14842,13 +15618,13 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -14863,26 +15639,26 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -14899,7 +15675,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -14933,11 +15709,11 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -14975,7 +15751,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -14991,7 +15767,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_4(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -15398,7 +16174,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 				wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-				CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+				CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 				wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -15485,7 +16261,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 					wcscpy_s(local_system_error_message, local_system_error_message_size, L"domain_name_to_internet_6_name завершилась неудачей");
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					wsprintf((wchar_t*)local_error_message, L"Сетевая ошибка -- %s -- %s\r\n", local_system_error_message, local_time_string.GetBuffer());
 
@@ -15506,7 +16282,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 					const int local_system_error_message_size = local_error_message_size - 1000;
 					wchar_t local_system_error_message[local_system_error_message_size];
 
-					CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+					CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 					local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -15537,11 +16313,11 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 				int local_error_number = 0;
 
 
-				int send_buffer_data_length = service_signature_definition_length;
+				int send_buffer_data_length = service_signature_definition_size;
 
 				ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH_IMAGE);
 
-				memcpy(send_buffer, service_signature, service_signature_definition_length);
+				memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 
 
@@ -15594,13 +16370,13 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 				char xor_code = _wtoi(xor_code_string);
 
-				encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+				encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
-				int local_header_length = service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+				int local_header_length = service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 
 				int local_part_counter = 0;
-				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
-				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_parts_count = local_read / (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+				int local_last_part_size = local_read % (CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 				if (local_last_part_size != 0)
 				{
@@ -15615,26 +16391,26 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 					{
 						if (local_last_part_size != 0)
 						{
-							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
+							send_buffer_this_time_data_length = local_last_part_size + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD);
 						}
 					}
 
 					ZeroMemory(send_buffer_this_time, CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME);
 
-					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_length + send_data_string_length * sizeof(wchar_t));
+					memcpy(send_buffer_this_time, send_buffer, service_signature_definition_size + send_data_string_length * sizeof(wchar_t));
 
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
-					((DWORD*)(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[0] = DWORD(local_part_counter + 1);
+					((DWORD*)(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t)))[1] = DWORD(local_parts_count);
 
-					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
+					encrypt::encrypt_xor(send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t), 2 * sizeof(DWORD), xor_code);
 
-					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_length - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
+					int local_this_time_data_offset = local_part_counter*(CONST_MESSAGE_LENGTH_IMAGE_EVERY_TIME - service_signature_definition_size - send_data_string_length * sizeof(wchar_t) - 2 * sizeof(DWORD));
 
 					memcpy
 					(
-						send_buffer_this_time + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
-						send_buffer + service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
-						send_buffer_this_time_data_length - (service_signature_definition_length + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
+						send_buffer_this_time + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD),
+						send_buffer + service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + local_this_time_data_offset,
+						send_buffer_this_time_data_length - (service_signature_definition_size + send_data_string_length * sizeof(wchar_t) + 2 * sizeof(DWORD))
 					);
 
 					try
@@ -15651,7 +16427,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -15685,11 +16461,11 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 					char send_buffer[CONST_MESSAGE_LENGTH];
 
-					int send_buffer_data_length = service_signature_definition_length;
+					int send_buffer_data_length = service_signature_definition_size;
 
 					ZeroMemory(send_buffer, CONST_MESSAGE_LENGTH);
 
-					memcpy(send_buffer, service_signature, service_signature_definition_length);
+					memcpy(send_buffer, service_signature, service_signature_definition_size);
 
 					CString send_data_string;
 
@@ -15727,7 +16503,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 
 					char xor_code = _wtoi(xor_code_string);
 
-					encrypt::encrypt_xor(send_buffer + service_signature_definition_length, send_buffer_data_length - service_signature_definition_length, xor_code);
+					encrypt::encrypt_xor(send_buffer + service_signature_definition_size, send_buffer_data_length - service_signature_definition_size, xor_code);
 
 					try
 					{
@@ -15743,7 +16519,7 @@ UINT __cdecl datagram_retranslate_audio_connection_thread_ip_6(LPVOID parameter)
 						const int local_system_error_message_size = local_error_message_size;
 						wchar_t local_system_error_message[local_system_error_message_size];
 
-						CString local_time_string = CTime::GetCurrentTime().FormatGmt("%d/%m/%y %H:%M:%S GMT");
+						CString local_time_string = CTime::GetCurrentTime().Format(CString(L"%H:%M:%S %A, %B %d, %Y"));
 
 						local_blocking_socket_exception->GetErrorMessage(local_system_error_message, local_system_error_message_size);
 
@@ -15951,4 +16727,13 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableChatServiceI
 	//lock.Lock();
 
 	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_CHAT_SERVICE_INFORMATION_state = button_enable_showing_service_information_in_chat.GetCheck();
+}
+
+
+void Cstl_network_ip_4_ip_6_udp_engineDialog::OnBnClickedCheckEnableLog()
+{
+	//CSingleLock lock(&GUI_update_critical_section);
+	//lock.Lock();
+
+	GUI_CONTROLS_STATE_data.IDC_CHECK_ENABLE_LOG_state = button_enable_log.GetCheck();
 }
