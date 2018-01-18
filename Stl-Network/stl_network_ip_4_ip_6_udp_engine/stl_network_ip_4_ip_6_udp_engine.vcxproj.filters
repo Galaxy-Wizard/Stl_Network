@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
+    <Text Include="..\Инструкция пользователя по работе с программой %27stl network engine%27.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stl_network_ip_4_ip_6_udp_engine.h">
