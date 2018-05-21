@@ -5667,7 +5667,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PlayAudio(CString parameter_string
 				current_received_microphone_stream->stream->Seek(liBeggining, STREAM_SEEK_SET, NULL);
 			}
 
-			local_lock.Unlock();
+			//local_lock.Unlock();
 
 			if (local_load_result)
 			{
@@ -5769,6 +5769,7 @@ void Cstl_network_ip_4_ip_6_udp_engineDialog::PlayAudio(CString parameter_string
 				threads_list.push_back(local_thread_information);
 			}
 
+			received_microphone_stream.empty();
 		}
 	}
 
