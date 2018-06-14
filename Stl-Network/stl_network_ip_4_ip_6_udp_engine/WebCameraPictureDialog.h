@@ -4,6 +4,19 @@
 
 #include <atlimage.h>
 
+
+//================================================================================================================================================================//
+//	DirectShow запрещён начиная с версии Windows 10
+//	Задачи:
+//	1) переделать реальзацию работы с web камерой и микрофоном:
+//	   a) оставить интерфейсные функции
+//			void CaptureWebCameraVideoSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image);
+//			void CaptureWebCameraVideoSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, CImage *parameter_video_image);
+//			void CaptureAudioSampleGetFromTheList_ip_4(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image);
+//			void CaptureAudioSampleGetFromTheList_ip_6(CWebCameraPictureDialog *local_web_camera_dialog, IStream **parameter_audio_image);
+//================================================================================================================================================================//
+
+
 #include <Dshow.h>
 #pragma comment(lib, "Strmiids.lib")
 
